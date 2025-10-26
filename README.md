@@ -30,6 +30,11 @@ pip install -r requirements.txt
 python app.py
 ```
 
+   For development with debug mode enabled:
+   ```bash
+   FLASK_DEBUG=true python app.py
+   ```
+
 2. Access the application:
    - **Referee Panel**: http://localhost:5000/referee
    - **Audience Display**: http://localhost:5000/display
