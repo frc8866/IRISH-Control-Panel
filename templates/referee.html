@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IRISH 2025 - Referee Panel</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>IRISH 2025 Scoring System</h1>
+            <h2>Referee Panel</h2>
+            <div class="nav-links">
+                <a href="/display" target="_blank">Open Audience Display</a>
+            </div>
+        </header>
+
+        <div class="scoring-panel">
+            <!-- Red Alliance -->
+            <div class="alliance red-alliance">
+                <h2>Red Alliance</h2>
+                
+                <div class="score-section">
+                    <h3>BUCKET</h3>
+                    <div class="button-group">
+                        <button onclick="updateScore('red_bucket', 6)">+6 pts</button>
+                        <button onclick="updateScore('red_bucket', 12)">+12 pts</button>
+                        <button onclick="updateScore('red_bucket', -6)">-6 pts</button>
+                        <button onclick="updateScore('red_bucket', -12)">-12 pts</button>
+                    </div>
+                    <div class="score-display">Score: <span id="red_bucket">0</span> pts</div>
+                </div>
+
+                <div class="score-section">
+                    <h3>HP (Human Player)</h3>
+                    <div class="button-group">
+                        <button onclick="updateScore('red_hp', 3)">+3 pts</button>
+                        <button onclick="updateScore('red_hp', -3)">-3 pts</button>
+                    </div>
+                    <div class="score-display">Score: <span id="red_hp">0</span> pts</div>
+                </div>
+
+                <div class="score-section">
+                    <h3>BENCH</h3>
+                    <div class="button-group">
+                        <button onclick="updateScore('red_bench', 2)">+2 pts</button>
+                        <button onclick="updateScore('red_bench', 6)">+6 pts</button>
+                        <button onclick="updateScore('red_bench', 14)">+14 pts</button>
+                    </div>
+                    <div class="button-group">
+                        <button onclick="updateScore('red_bench', -2)">-2 pts</button>
+                        <button onclick="updateScore('red_bench', -6)">-6 pts</button>
+                        <button onclick="updateScore('red_bench', -14)">-14 pts</button>
+                    </div>
+                    <div class="score-display">Score: <span id="red_bench">0</span> pts</div>
+                </div>
+
+                <div class="score-section">
+                    <h3>Fouls (Given to Opponent)</h3>
+                    <div class="button-group">
+                        <button onclick="updateScore('blue_fouls', 5)">+5 pts</button>
+                        <button onclick="updateScore('blue_fouls', 15)">+15 pts</button>
+                        <button onclick="updateScore('blue_fouls', -5)">-5 pts</button>
+                        <button onclick="updateScore('blue_fouls', -15)">-15 pts</button>
+                    </div>
+                    <div class="score-display">Fouls Given: <span id="red_fouls_given">0</span> pts</div>
+                </div>
+
+                <div class="score-section bonus-section">
+                    <h3>AND ONE Counter</h3>
+                    <div class="button-group">
+                        <button onclick="incrementAndOne('red')">+1 AND ONE</button>
+                        <button onclick="decrementAndOne('red')">-1 AND ONE</button>
+                    </div>
+                    <div class="score-display">Count: <span id="red_and_one_count">0</span></div>
+                    <div class="bonus-status">
+                        <strong>15-Second BONUS: <span id="red_bonus_status">INACTIVE</span></strong>
+                    </div>
+                </div>
+
+                <div class="total-section">
+                    <h2>Total Score: <span id="red_total">0</span></h2>
+                </div>
+            </div>
+
+            <!-- Blue Alliance -->
+            <div class="alliance blue-alliance">
+                <h2>Blue Alliance</h2>
+                
+                <div class="score-section">
+                    <h3>BUCKET</h3>
+                    <div class="button-group">
+                        <button onclick="updateScore('blue_bucket', 6)">+6 pts</button>
+                        <button onclick="updateScore('blue_bucket', 12)">+12 pts</button>
+                        <button onclick="updateScore('blue_bucket', -6)">-6 pts</button>
+                        <button onclick="updateScore('blue_bucket', -12)">-12 pts</button>
+                    </div>
+                    <div class="score-display">Score: <span id="blue_bucket">0</span> pts</div>
+                </div>
+
+                <div class="score-section">
+                    <h3>HP (Human Player)</h3>
+                    <div class="button-group">
+                        <button onclick="updateScore('blue_hp', 3)">+3 pts</button>
+                        <button onclick="updateScore('blue_hp', -3)">-3 pts</button>
+                    </div>
+                    <div class="score-display">Score: <span id="blue_hp">0</span> pts</div>
+                </div>
+
+                <div class="score-section">
+                    <h3>BENCH</h3>
+                    <div class="button-group">
+                        <button onclick="updateScore('blue_bench', 2)">+2 pts</button>
+                        <button onclick="updateScore('blue_bench', 6)">+6 pts</button>
+                        <button onclick="updateScore('blue_bench', 14)">+14 pts</button>
+                    </div>
+                    <div class="button-group">
+                        <button onclick="updateScore('blue_bench', -2)">-2 pts</button>
+                        <button onclick="updateScore('blue_bench', -6)">-6 pts</button>
+                        <button onclick="updateScore('blue_bench', -14)">-14 pts</button>
+                    </div>
+                    <div class="score-display">Score: <span id="blue_bench">0</span> pts</div>
+                </div>
+
+                <div class="score-section">
+                    <h3>Fouls (Given to Opponent)</h3>
+                    <div class="button-group">
+                        <button onclick="updateScore('red_fouls', 5)">+5 pts</button>
+                        <button onclick="updateScore('red_fouls', 15)">+15 pts</button>
+                        <button onclick="updateScore('red_fouls', -5)">-5 pts</button>
+                        <button onclick="updateScore('red_fouls', -15)">-15 pts</button>
+                    </div>
+                    <div class="score-display">Fouls Given: <span id="blue_fouls_given">0</span> pts</div>
+                </div>
+
+                <div class="score-section bonus-section">
+                    <h3>AND ONE Counter</h3>
+                    <div class="button-group">
+                        <button onclick="incrementAndOne('blue')">+1 AND ONE</button>
+                        <button onclick="decrementAndOne('blue')">-1 AND ONE</button>
+                    </div>
+                    <div class="score-display">Count: <span id="blue_and_one_count">0</span></div>
+                    <div class="bonus-status">
+                        <strong>15-Second BONUS: <span id="blue_bonus_status">INACTIVE</span></strong>
+                    </div>
+                </div>
+
+                <div class="total-section">
+                    <h2>Total Score: <span id="blue_total">0</span></h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="control-buttons">
+            <button class="reset-button" onclick="resetScores()">RESET ALL SCORES</button>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/referee.js') }}"></script>
+</body>
+</html>
