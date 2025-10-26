@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IRISH 2025 - Audience Display</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/display.css') }}">
+</head>
+<body>
+    <div class="display-container">
+        <header>
+            <h1>IRISH 2025</h1>
+            <h2>Live Match Scores</h2>
+        </header>
+
+        <div class="scoreboard">
+            <div class="alliance-display red-display">
+                <div class="alliance-header">
+                    <h2>RED ALLIANCE</h2>
+                </div>
+                
+                <div class="score-breakdown">
+                    <div class="score-item">
+                        <span class="label">BUCKET:</span>
+                        <span class="value" id="display_red_bucket">0</span>
+                    </div>
+                    <div class="score-item">
+                        <span class="label">HP:</span>
+                        <span class="value" id="display_red_hp">0</span>
+                    </div>
+                    <div class="score-item">
+                        <span class="label">BENCH:</span>
+                        <span class="value" id="display_red_bench">0</span>
+                    </div>
+                    <div class="score-item">
+                        <span class="label">FOULS:</span>
+                        <span class="value" id="display_red_fouls">0</span>
+                    </div>
+                    <div class="score-item bonus-item">
+                        <span class="label">AND ONE COUNT:</span>
+                        <span class="value" id="display_red_and_one">0</span>
+                    </div>
+                    <div class="bonus-indicator" id="red_bonus_indicator">
+                        <span class="bonus-text">🔥 15-SEC BONUS ACTIVE! 🔥</span>
+                    </div>
+                </div>
+
+                <div class="total-display">
+                    <div class="total-label">TOTAL</div>
+                    <div class="total-score" id="display_red_total">0</div>
+                </div>
+            </div>
+
+            <div class="alliance-display blue-display">
+                <div class="alliance-header">
+                    <h2>BLUE ALLIANCE</h2>
+                </div>
+                
+                <div class="score-breakdown">
+                    <div class="score-item">
+                        <span class="label">BUCKET:</span>
+                        <span class="value" id="display_blue_bucket">0</span>
+                    </div>
+                    <div class="score-item">
+                        <span class="label">HP:</span>
+                        <span class="value" id="display_blue_hp">0</span>
+                    </div>
+                    <div class="score-item">
+                        <span class="label">BENCH:</span>
+                        <span class="value" id="display_blue_bench">0</span>
+                    </div>
+                    <div class="score-item">
+                        <span class="label">FOULS:</span>
+                        <span class="value" id="display_blue_fouls">0</span>
+                    </div>
+                    <div class="score-item bonus-item">
+                        <span class="label">AND ONE COUNT:</span>
+                        <span class="value" id="display_blue_and_one">0</span>
+                    </div>
+                    <div class="bonus-indicator" id="blue_bonus_indicator">
+                        <span class="bonus-text">🔥 15-SEC BONUS ACTIVE! 🔥</span>
+                    </div>
+                </div>
+
+                <div class="total-display">
+                    <div class="total-label">TOTAL</div>
+                    <div class="total-score" id="display_blue_total">0</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="status-bar">
+            <span>Last Updated: <span id="last_update">--:--:--</span></span>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/display.js') }}"></script>
+</body>
+</html>
