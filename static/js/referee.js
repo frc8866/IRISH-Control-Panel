@@ -1,5 +1,9 @@
 // Referee Panel JavaScript
 let currentScores = {};
+let bonusTimers = {
+    red: null,
+    blue: null
+};
 
 // Fetch current scores and update display
 function fetchScores() {
@@ -87,8 +91,17 @@ function incrementAndOne(alliance) {
     // Check if we need to activate bonus (every 3 AND ONEs)
     if (newCount > 0 && newCount % 3 === 0) {
         updateData[bonusField] = 1;
-        // Set timer to deactivate after 15 seconds
-        setTimeout(() => deactivateBonus(alliance), 15000);
+        
+        // Clear any existing timer for this alliance to prevent race conditions
+        if (bonusTimers[alliance]) {
+            clearTimeout(bonusTimers[alliance]);
+        }
+        
+        // Set new timer to deactivate after 15 seconds
+        bonusTimers[alliance] = setTimeout(() => {
+            deactivateBonus(alliance);
+            bonusTimers[alliance] = null;
+        }, 15000);
     }
     
     fetch('/api/score', {
