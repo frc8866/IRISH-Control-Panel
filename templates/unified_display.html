@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IRISH Competition Display</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/unified_display.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+</head>
+<body>
+    <!-- Pre-Match Screen -->
+    <div id="prematch-screen" class="screen active">
+        <header>
+            <div class="teamhosting">Innovation Robotics</div>
+            <div class="matchnum">Match <span id="prematch-match-num">?</span></div>
+            <div class="event">IRISH Off Season Event</div>
+        </header>
+
+        <div class="prematch-content">
+            <div class="alliance-preview red-alliance-preview">
+                <h2>RED ALLIANCE</h2>
+                <div class="team-box">
+                    <span class="team-number" id="prematch-red-team1">????</span>
+                </div>
+                <div class="team-box">
+                    <span class="team-number" id="prematch-red-team2">????</span>
+                </div>
+            </div>
+
+            <div class="vs-section">
+                <h1>VS</h1>
+            </div>
+
+            <div class="alliance-preview blue-alliance-preview">
+                <h2>BLUE ALLIANCE</h2>
+                <div class="team-box">
+                    <span class="team-number" id="prematch-blue-team1">????</span>
+                </div>
+                <div class="team-box">
+                    <span class="team-number" id="prematch-blue-team2">????</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Live Match Screen -->
+    <div id="live-screen" class="screen">
+        <header>
+            <div class="teamhosting">Innovation Robotics</div>
+            <div class="matchnum">Match <span id="live-match-num">?</span></div>
+            <div class="event">IRISH Off Season Event</div>
+        </header>
+
+        <div class="scoreboard-main">
+            <div class="alliance red-alliance">
+                <div class="team-numbers">
+                    <div id="live-red-team1">????</div>
+                    <div id="live-red-team2">????</div>
+                </div>
+                <div class="alliance-info">
+                    <div class="alliance-score" id="live-red-score">0</div>
+                </div>
+            </div>
+
+            <div class="center-panel">
+                <div class="time" id="match-time">2:15</div>
+                <div id="endgame-indicator" class="endgame-indicator">ENDGAME</div>
+                <div id="bonus-indicator" class="bonus-indicator">BONUS ACTIVE</div>
+                <div id="field-fault-banner" class="field-fault-banner">FIELD FAULT</div>
+                <div id="review-banner" class="review-banner"> UNDER REVIEW </div>
+            </div>
+
+            <div class="alliance blue-alliance">
+                <div class="team-numbers">
+                    <div id="live-blue-team1">????</div>
+                    <div id="live-blue-team2">????</div>
+                </div>
+                <div class="alliance-info">
+                    <div class="alliance-score" id="live-blue-score">0</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Post-Match Screen -->
+    <div id="postmatch-screen" class="screen">
+        <header>
+            <div class="teamhosting">Innovation Robotics</div>
+            <div class="matchnum">Match <span id="postmatch-match-num">?</span> - FINAL</div>
+            <div class="event">IRISH Off Season Event</div>
+        </header>
+
+        <div class="postmatch-content">
+            <div class="final-scores-header">
+                <div class="alliance-score-box red-box">
+                    <div class="alliance-label">Red</div>
+                    <div class="alliance-teams">
+                        <span id="postmatch-red-team1">????</span> / <span id="postmatch-red-team2">????</span>
+                    </div>
+                    <div class="alliance-final-score" id="postmatch-red-score">0</div>
+                </div>
+                
+                <div class="alliance-score-box blue-box">
+                    <div class="alliance-label">Blue</div>
+                    <div class="alliance-teams">
+                        <span id="postmatch-blue-team1">????</span> / <span id="postmatch-blue-team2">????</span>
+                    </div>
+                    <div class="alliance-final-score" id="postmatch-blue-score">0</div>
+                </div>
+            </div>
+
+            <div class="winner-banner" id="winner-banner"></div>
+
+            <div class="scoring-table">
+                <div class="scoring-row header-row">
+                    <div class="red-value"></div>
+                    <div class="scoring-label">SCORING</div>
+                    <div class="blue-value"></div>
+                </div>
+                <div class="scoring-row">
+                    <div class="red-value" id="postmatch-red-bucket-normal">0</div>
+                    <div class="scoring-label">BUCKET (NORMAL)</div>
+                    <div class="blue-value" id="postmatch-blue-bucket-normal">0</div>
+                </div>
+                <div class="scoring-row">
+                    <div class="red-value" id="postmatch-red-human-bucket">0</div>
+                    <div class="scoring-label">HUMAN BUCKET</div>
+                    <div class="blue-value" id="postmatch-blue-human-bucket">0</div>
+                </div>
+                <div class="scoring-row">
+                    <div class="red-value" id="postmatch-red-park">0</div>
+                    <div class="scoring-label">PARK</div>
+                    <div class="blue-value" id="postmatch-blue-park">0</div>
+                </div>
+                <div class="scoring-row penalty-row">
+                    <div class="red-value" id="postmatch-red-fouls">0</div>
+                    <div class="scoring-label">PENALTY</div>
+                    <div class="blue-value" id="postmatch-blue-fouls">0</div>
+                </div>
+            </div>
+
+            <div class="ranking-points-container">
+                <div class="rp-section red-rp">
+                    <h3>Ranking Points</h3>
+                    <div class="rp-indicators">
+                        <span id="postmatch-red-win-rp" class="rp-icon">🏆</span>
+                        <span id="postmatch-red-teleop-rp" class="rp-icon">🎯</span>
+                        <span id="postmatch-red-climb-rp" class="rp-icon">⬆️</span>
+                    </div>
+                </div>
+                <div class="rp-section blue-rp">
+                    <h3>Ranking Points</h3>
+                    <div class="rp-indicators">
+                        <span id="postmatch-blue-win-rp" class="rp-icon">🏆</span>
+                        <span id="postmatch-blue-teleop-rp" class="rp-icon">🎯</span>
+                        <span id="postmatch-blue-climb-rp" class="rp-icon">⬆️</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        let currentScreen = 'prematch';
+
+        // Screen transition function
+        function showScreen(screenName) {
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.remove('active', 'fade-in', 'fade-out');
+            });
+
+            const targetScreen = document.getElementById(`${screenName}-screen`);
+            if (targetScreen) {
+                targetScreen.classList.add('active', 'fade-in');
+                currentScreen = screenName;
+            }
+        }
+
+        // Update prematch data
+        function updatePrematchData(data) {
+            document.getElementById('prematch-match-num').textContent = data.match_number || '?';
+            document.getElementById('prematch-red-team1').textContent = data.red_team1 || '????';
+            document.getElementById('prematch-red-team2').textContent = data.red_team2 || '????';
+            document.getElementById('prematch-blue-team1').textContent = data.blue_team1 || '????';
+            document.getElementById('prematch-blue-team2').textContent = data.blue_team2 || '????';
+        }
+
+        // Update live match data
+        function updateLiveData(data) {
+            document.getElementById('live-match-num').textContent = data.match_number || '?';
+            document.getElementById('live-red-team1').textContent = data.red_team1 || '????';
+            document.getElementById('live-red-team2').textContent = data.red_team2 || '????';
+            document.getElementById('live-blue-team1').textContent = data.blue_team1 || '????';
+            document.getElementById('live-blue-team2').textContent = data.blue_team2 || '????';
+            document.getElementById('live-red-score').textContent = data.red_score || 0;
+            document.getElementById('live-blue-score').textContent = data.blue_score || 0;
+        }
+
+        // Update postmatch data
+        function updatePostmatchData(data) {
+            console.log('Postmatch data received:', data);  // Debug log
+            document.getElementById('postmatch-match-num').textContent = data.match_number || '?';
+            document.getElementById('postmatch-red-team1').textContent = data.red_team1 || '????';
+            document.getElementById('postmatch-red-team2').textContent = data.red_team2 || '????';
+            document.getElementById('postmatch-blue-team1').textContent = data.blue_team1 || '????';
+            document.getElementById('postmatch-blue-team2').textContent = data.blue_team2 || '????';
+            document.getElementById('postmatch-red-score').textContent = data.red_score || 0;
+            document.getElementById('postmatch-blue-score').textContent = data.blue_score || 0;
+
+            // Score breakdown
+            document.getElementById('postmatch-red-bucket-normal').textContent = data.red_bucket_normal + data.red_bucket_bonus || 0;
+            document.getElementById('postmatch-red-human-bucket').textContent = data.red_human_bucket || 0;
+            document.getElementById('postmatch-red-park').textContent = data.red_park + data.red_slight_ramp + data.red_climb || 0;
+            document.getElementById('postmatch-red-fouls').textContent = data.red_fouls || 0;
+
+            document.getElementById('postmatch-blue-bucket-normal').textContent = data.blue_bucket_normal + data.blue_bucket_bonus || 0;
+            document.getElementById('postmatch-blue-human-bucket').textContent = data.blue_human_bucket || 0;
+            document.getElementById('postmatch-blue-park').textContent = data.blue_park + data.blue_slight_ramp + data.blue_climb || 0;
+            document.getElementById('postmatch-blue-fouls').textContent = data.blue_fouls || 0;
+
+            // Ranking points - add active class if earned
+            const redWinRP = document.getElementById('postmatch-red-win-rp');
+            const redTeleopRP = document.getElementById('postmatch-red-teleop-rp');
+            const redClimbRP = document.getElementById('postmatch-red-climb-rp');
+            const blueWinRP = document.getElementById('postmatch-blue-win-rp');
+            const blueTeleopRP = document.getElementById('postmatch-blue-teleop-rp');
+            const blueClimbRP = document.getElementById('postmatch-blue-climb-rp');
+
+            redWinRP.className = data.red_win_rp ? 'rp-icon active' : 'rp-icon';
+            redTeleopRP.className = data.red_teleop_rp ? 'rp-icon active' : 'rp-icon';
+            redClimbRP.className = data.red_climb_rp ? 'rp-icon active' : 'rp-icon';
+            blueWinRP.className = data.blue_win_rp ? 'rp-icon active' : 'rp-icon';
+            blueTeleopRP.className = data.blue_teleop_rp ? 'rp-icon active' : 'rp-icon';
+            blueClimbRP.className = data.blue_climb_rp ? 'rp-icon active' : 'rp-icon';
+
+            // Winner banner
+            const winnerBanner = document.getElementById('winner-banner');
+            if (data.red_score > data.blue_score) {
+                winnerBanner.textContent = 'RED ALLIANCE WINS! 🏆';
+                winnerBanner.className = 'winner-banner red-wins';
+            } else if (data.blue_score > data.red_score) {
+                winnerBanner.textContent = 'BLUE ALLIANCE WINS! 🏆';
+                winnerBanner.className = 'winner-banner blue-wins';
+            } else {
+                winnerBanner.textContent = 'MATCH TIED!';
+                winnerBanner.className = 'winner-banner tie';
+            }
+        }
+
+        // Socket event listeners
+        socket.on('show_prematch', (data) => {
+            updatePrematchData(data);
+            showScreen('prematch');
+        });
+
+        socket.on('show_live', (data) => {
+            updateLiveData(data);
+            showScreen('live');
+            // Hide indicators initially
+            document.getElementById('endgame-indicator').style.display = 'none';
+            document.getElementById('bonus-indicator').style.display = 'none';
+            document.getElementById('field-fault-banner').style.display = 'none';
+            document.getElementById('review-banner').style.display = 'none';
+        });
+
+        socket.on('show_postmatch', (data) => {
+            updatePostmatchData(data);
+            // Hide endgame indicator when match ends
+            document.getElementById('endgame-indicator').style.display = 'none';
+            // Fade transition to postmatch
+            const liveScreen = document.getElementById('live-screen');
+            liveScreen.classList.add('fade-out');
+            setTimeout(() => {
+                showScreen('postmatch');
+            }, 500);
+        });
+
+        socket.on('match_data_updated', (data) => {
+            // Update current screen with new data
+            if (currentScreen === 'prematch') {
+                updatePrematchData(data);
+            } else if (currentScreen === 'live') {
+                updateLiveData(data);
+            } else if (currentScreen === 'postmatch') {
+                updatePostmatchData(data);
+            }
+        });
+
+        socket.on('score_updated', (data) => {
+            document.getElementById('live-red-score').textContent = data.red_score;
+            document.getElementById('live-blue-score').textContent = data.blue_score;
+        });
+
+        socket.on('timer_update', (data) => {
+            const timerElement = document.getElementById('match-time');
+            const fieldFaultBanner = document.getElementById('field-fault-banner');
+            
+            // Check if field fault is active
+            if (data.field_fault) {
+                timerElement.textContent = 'FIELD FAULT';
+                timerElement.style.color = '#ff0000';
+                timerElement.style.animation = 'pulse 1s infinite';
+                fieldFaultBanner.style.display = 'block';
+            } else {
+                const minutes = Math.floor(data.time_remaining / 60);
+                const seconds = data.time_remaining % 60;
+                timerElement.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                timerElement.style.color = '#fff';
+                timerElement.style.animation = 'none';
+                fieldFaultBanner.style.display = 'none';
+            }
+
+            if (data.is_endgame) {
+                document.getElementById('endgame-indicator').style.display = 'block';
+            }
+
+            // Show bonus status for both alliances
+            let bonusText = '';
+            if (data.red_bonus_active) {
+                bonusText += `RED BONUS: ${data.red_bonus_time}s `;
+            }
+            if (data.blue_bonus_active) {
+                bonusText += `BLUE BONUS: ${data.blue_bonus_time}s`;
+            }
+            
+            if (bonusText) {
+                document.getElementById('bonus-indicator').style.display = 'block';
+                document.getElementById('bonus-indicator').textContent = bonusText.trim();
+            } else {
+                document.getElementById('bonus-indicator').style.display = 'none';
+            }
+        });
+
+        socket.on('show_review', () => {
+            document.getElementById('match-time').style.display = 'none';
+            document.getElementById('review-banner').style.display = 'block';
+        });
+
+        socket.on('hide_review', () => {
+            document.getElementById('match-time').style.display = 'block';
+            document.getElementById('review-banner').style.display = 'none';
+        });
+
+        // Initial load
+        fetch('/api/current_match')
+            .then(response => response.json())
+            .then(data => {
+                updatePrematchData(data);
+                updateLiveData(data);
+            });
+    </script>
+</body>
+</html>

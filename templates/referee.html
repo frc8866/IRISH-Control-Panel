@@ -3,160 +3,283 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IRISH 2025 - Referee Panel</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <title>Referee Control Panel - IRISH</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/referee.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>IRISH 2025 Scoring System</h1>
-            <h2>Referee Panel</h2>
-            <div class="nav-links">
-                <a href="/display" target="_blank">Open Audience Display</a>
-            </div>
-        </header>
+    <div class="referee-panel">
+        <div class="header">
+            <h1>IRISH Referee Control Panel</h1>
+        </div>
 
-        <div class="scoring-panel">
-            <!-- Red Alliance -->
-            <div class="alliance red-alliance">
-                <h2>Red Alliance</h2>
-                
-                <div class="score-section">
-                    <h3>BUCKET</h3>
-                    <div class="button-group">
-                        <button onclick="updateScore('red_bucket', 6)">+6 pts</button>
-                        <button onclick="updateScore('red_bucket', 12)">+12 pts</button>
-                        <button onclick="updateScore('red_bucket', -6)">-6 pts</button>
-                        <button onclick="updateScore('red_bucket', -12)">-12 pts</button>
-                    </div>
-                    <div class="score-display">Score: <span id="red_bucket">0</span> pts</div>
+        <div class="match-info">
+            <h2>Current Match: <span id="match-num">?</span></h2>
+            <div id="current-match">No match selected</div>
+        </div>
+
+        <div class="timer-section">
+            <div class="timer-display" id="match-timer">2:15</div>
+            <div id="endgame-indicator"></div>
+            <div id="bonus-indicator"></div>
+        </div>
+
+        <div class="alliance-controls">
+            <div class="red-controls">
+                <div class="alliance-header">RED ALLIANCE</div>
+
+                <div class="scoring-section">
+                    <div class="section-title">Teleoperated Scoring</div>
+                    <button class="score-btn red-btn bucket-btn" data-alliance="red" data-type="bucket">BUCKET <span class="bucket-points">(6pts)</span></button>
+                    <button class="score-btn red-btn" data-alliance="red" data-type="human_bucket">HUMAN PLAYER BUCKET (3pts)</button>
+                    <button class="score-btn neutral-btn" id="red-bonus-activate" data-alliance="red">Activate AND ONE BONUS</button>
                 </div>
 
-                <div class="score-section">
-                    <h3>HP (Human Player)</h3>
-                    <div class="button-group">
-                        <button onclick="updateScore('red_hp', 3)">+3 pts</button>
-                        <button onclick="updateScore('red_hp', -3)">-3 pts</button>
-                    </div>
-                    <div class="score-display">Score: <span id="red_hp">0</span> pts</div>
+                <div class="scoring-section">
+                    <div class="section-title">Endgame Scoring (BENCH)</div>
+                    <button class="score-btn red-btn" data-alliance="red" data-type="park">PARK (2pts)</button>
+                    <button class="score-btn red-btn" data-alliance="red" data-type="slight_ramp">Slight Ramp (6pts)</button>
+                    <button class="score-btn red-btn" data-alliance="red" data-type="climb">Climb (14pts)</button>
                 </div>
 
-                <div class="score-section">
-                    <h3>BENCH</h3>
-                    <div class="button-group">
-                        <button onclick="updateScore('red_bench', 2)">+2 pts</button>
-                        <button onclick="updateScore('red_bench', 6)">+6 pts</button>
-                        <button onclick="updateScore('red_bench', 14)">+14 pts</button>
-                    </div>
-                    <div class="button-group">
-                        <button onclick="updateScore('red_bench', -2)">-2 pts</button>
-                        <button onclick="updateScore('red_bench', -6)">-6 pts</button>
-                        <button onclick="updateScore('red_bench', -14)">-14 pts</button>
-                    </div>
-                    <div class="score-display">Score: <span id="red_bench">0</span> pts</div>
-                </div>
-
-                <div class="score-section">
-                    <h3>Fouls (Given to Opponent)</h3>
-                    <div class="button-group">
-                        <button onclick="updateScore('blue_fouls', 5)">+5 pts</button>
-                        <button onclick="updateScore('blue_fouls', 15)">+15 pts</button>
-                        <button onclick="updateScore('blue_fouls', -5)">-5 pts</button>
-                        <button onclick="updateScore('blue_fouls', -15)">-15 pts</button>
-                    </div>
-                    <div class="score-display">Fouls Given: <span id="red_fouls_given">0</span> pts</div>
-                </div>
-
-                <div class="score-section bonus-section">
-                    <h3>AND ONE Counter</h3>
-                    <div class="button-group">
-                        <button onclick="incrementAndOne('red')">+1 AND ONE</button>
-                        <button onclick="decrementAndOne('red')">-1 AND ONE</button>
-                    </div>
-                    <div class="score-display">Count: <span id="red_and_one_count">0</span></div>
-                    <div class="bonus-status">
-                        <strong>15-Second BONUS: <span id="red_bonus_status">INACTIVE</span></strong>
-                    </div>
-                </div>
-
-                <div class="total-section">
-                    <h2>Total Score: <span id="red_total">0</span></h2>
+                <div class="scoring-section">
+                    <div class="section-title">Penalties</div>
+                    <button class="score-btn penalty-btn" data-alliance="red" data-type="foul">Foul (+5 to Blue)</button>
+                    <button class="score-btn danger-btn" data-alliance="red" data-type="tech_foul">Tech Foul (+15 to Blue)</button>
                 </div>
             </div>
 
-            <!-- Blue Alliance -->
-            <div class="alliance blue-alliance">
-                <h2>Blue Alliance</h2>
-                
-                <div class="score-section">
-                    <h3>BUCKET</h3>
-                    <div class="button-group">
-                        <button onclick="updateScore('blue_bucket', 6)">+6 pts</button>
-                        <button onclick="updateScore('blue_bucket', 12)">+12 pts</button>
-                        <button onclick="updateScore('blue_bucket', -6)">-6 pts</button>
-                        <button onclick="updateScore('blue_bucket', -12)">-12 pts</button>
-                    </div>
-                    <div class="score-display">Score: <span id="blue_bucket">0</span> pts</div>
+            <div class="blue-controls">
+                <div class="alliance-header">BLUE ALLIANCE</div>
+
+                <div class="scoring-section">
+                    <div class="section-title">Teleoperated Scoring</div>
+                    <button class="score-btn blue-btn bucket-btn" data-alliance="blue" data-type="bucket">BUCKET <span class="bucket-points">(6pts)</span></button>
+                    <button class="score-btn blue-btn" data-alliance="blue" data-type="human_bucket">HUMAN PLAYER BUCKET (3pts)</button>
+                    <button class="score-btn neutral-btn" id="blue-bonus-activate" data-alliance="blue">Activate AND ONE BONUS</button>
                 </div>
 
-                <div class="score-section">
-                    <h3>HP (Human Player)</h3>
-                    <div class="button-group">
-                        <button onclick="updateScore('blue_hp', 3)">+3 pts</button>
-                        <button onclick="updateScore('blue_hp', -3)">-3 pts</button>
-                    </div>
-                    <div class="score-display">Score: <span id="blue_hp">0</span> pts</div>
+                <div class="scoring-section">
+                    <div class="section-title">Endgame Scoring (BENCH)</div>
+                    <button class="score-btn blue-btn" data-alliance="blue" data-type="park">PARK (2pts)</button>
+                    <button class="score-btn blue-btn" data-alliance="blue" data-type="slight_ramp">Slight Ramp (6pts)</button>
+                    <button class="score-btn blue-btn" data-alliance="blue" data-type="climb">Climb (14pts)</button>
                 </div>
 
-                <div class="score-section">
-                    <h3>BENCH</h3>
-                    <div class="button-group">
-                        <button onclick="updateScore('blue_bench', 2)">+2 pts</button>
-                        <button onclick="updateScore('blue_bench', 6)">+6 pts</button>
-                        <button onclick="updateScore('blue_bench', 14)">+14 pts</button>
-                    </div>
-                    <div class="button-group">
-                        <button onclick="updateScore('blue_bench', -2)">-2 pts</button>
-                        <button onclick="updateScore('blue_bench', -6)">-6 pts</button>
-                        <button onclick="updateScore('blue_bench', -14)">-14 pts</button>
-                    </div>
-                    <div class="score-display">Score: <span id="blue_bench">0</span> pts</div>
-                </div>
-
-                <div class="score-section">
-                    <h3>Fouls (Given to Opponent)</h3>
-                    <div class="button-group">
-                        <button onclick="updateScore('red_fouls', 5)">+5 pts</button>
-                        <button onclick="updateScore('red_fouls', 15)">+15 pts</button>
-                        <button onclick="updateScore('red_fouls', -5)">-5 pts</button>
-                        <button onclick="updateScore('red_fouls', -15)">-15 pts</button>
-                    </div>
-                    <div class="score-display">Fouls Given: <span id="blue_fouls_given">0</span> pts</div>
-                </div>
-
-                <div class="score-section bonus-section">
-                    <h3>AND ONE Counter</h3>
-                    <div class="button-group">
-                        <button onclick="incrementAndOne('blue')">+1 AND ONE</button>
-                        <button onclick="decrementAndOne('blue')">-1 AND ONE</button>
-                    </div>
-                    <div class="score-display">Count: <span id="blue_and_one_count">0</span></div>
-                    <div class="bonus-status">
-                        <strong>15-Second BONUS: <span id="blue_bonus_status">INACTIVE</span></strong>
-                    </div>
-                </div>
-
-                <div class="total-section">
-                    <h2>Total Score: <span id="blue_total">0</span></h2>
+                <div class="scoring-section">
+                    <div class="section-title">Penalties</div>
+                    <button class="score-btn penalty-btn" data-alliance="blue" data-type="foul">Foul (+5 to Red)</button>
+                    <button class="score-btn danger-btn" data-alliance="blue" data-type="tech_foul">Tech Foul (+15 to Red)</button>
                 </div>
             </div>
         </div>
 
-        <div class="control-buttons">
-            <button class="reset-button" onclick="resetScores()">RESET ALL SCORES</button>
+        <div class="current-scores">
+            <div class="score-display">
+                <span class="red-score">0</span> - <span class="blue-score">0</span>
+            </div>
+            <div class="rp-display" id="rp-display">
+                RPs - Red: 0 | Blue: 0
+            </div>
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='js/referee.js') }}"></script>
+    <script>
+        const socket = io();
+        let currentMatchId = null;
+        let redBonusActive = false;
+        let blueBonusActive = false;
+
+        // Get current match
+        fetch('/api/matches')
+            .then(response => response.json())
+            .then(matches => {
+                const currentMatch = matches.find(m => m.status === 'in_progress') || matches.find(m => m.status === 'scheduled');
+                if (currentMatch) {
+                    currentMatchId = currentMatch.id;
+                    document.getElementById('match-num').textContent = currentMatch.match_number;
+                    document.getElementById('current-match').innerHTML = `
+                        Red: ${currentMatch.red_team1}/${currentMatch.red_team2} vs Blue: ${currentMatch.blue_team1}/${currentMatch.blue_team2}
+                    `;
+                    updateScores(currentMatch);
+                    updateTimer(currentMatch);
+                }
+            });
+
+        function updateScores(match) {
+            document.querySelector('.red-score').textContent = match.red_score;
+            document.querySelector('.blue-score').textContent = match.blue_score;
+            updateRPs(match);
+        }
+
+        function updateRPs(match) {
+            let redRPs = 0;
+            let blueRPs = 0;
+
+            if (match.red_win_rp) redRPs += 2;
+            if (match.blue_win_rp) blueRPs += 2;
+            if (match.red_teleop_rp) redRPs += 1;
+            if (match.blue_teleop_rp) blueRPs += 1;
+            if (match.red_climb_rp) redRPs += 1;
+            if (match.blue_climb_rp) blueRPs += 1;
+
+            document.getElementById('rp-display').textContent = `RPs - Red: ${redRPs} | Blue: ${blueRPs}`;
+        }
+
+        function updateTimer(data) {
+            const minutes = Math.floor(data.time_remaining / 60);
+            const seconds = data.time_remaining % 60;
+            document.getElementById('match-timer').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+            if (data.is_endgame) {
+                document.getElementById('endgame-indicator').textContent = 'ENDGAME - 30 SECONDS REMAINING!';
+            } else {
+                document.getElementById('endgame-indicator').textContent = '';
+            }
+
+            // Show bonus status for both alliances
+            let bonusText = '';
+            if (data.red_bonus_active) {
+                bonusText += `RED BONUS: ${data.red_bonus_time}s `;
+            }
+            if (data.blue_bonus_active) {
+                bonusText += `BLUE BONUS: ${data.blue_bonus_time}s`;
+            }
+            document.getElementById('bonus-indicator').textContent = bonusText;
+        }
+
+        // Scoring buttons
+        document.querySelectorAll('.score-btn[data-type]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const alliance = btn.dataset.alliance;
+                const type = btn.dataset.type;
+                let points = 0;
+                let eventType = type;
+
+                // Set points based on type
+                switch(type) {
+                    case 'bucket':
+                        // Check if bonus is active for this alliance
+                        if ((alliance === 'red' && redBonusActive) || (alliance === 'blue' && blueBonusActive)) {
+                            points = 12;
+                            eventType = 'bucket_bonus';
+                        } else {
+                            points = 6;
+                            eventType = 'bucket_normal';
+                        }
+                        break;
+                    case 'human_bucket': points = 3; break;
+                    case 'park': points = 2; break;
+                    case 'slight_ramp': points = 6; break;
+                    case 'climb': points = 14; break;
+                    case 'foul': points = 5; break; // This will be added to opponent
+                    case 'tech_foul': points = 15; break; // This will be added to opponent
+                }
+
+                if (currentMatchId) {
+                    socket.emit('score_event', {
+                        match_id: currentMatchId,
+                        alliance: alliance,
+                        event_type: eventType,
+                        points: points
+                    });
+                }
+            });
+        });
+
+        // Bonus activation buttons
+        document.getElementById('red-bonus-activate').addEventListener('click', () => {
+            if (currentMatchId) {
+                socket.emit('activate_bonus', { match_id: currentMatchId, alliance: 'red' });
+            }
+        });
+
+        document.getElementById('blue-bonus-activate').addEventListener('click', () => {
+            if (currentMatchId) {
+                socket.emit('activate_bonus', { match_id: currentMatchId, alliance: 'blue' });
+            }
+        });
+        
+        // Function to update bucket button points display
+        function updateBucketButtons() {
+            // Update red bucket button
+            const redBucketBtn = document.querySelector('.bucket-btn[data-alliance="red"] .bucket-points');
+            if (redBucketBtn) {
+                redBucketBtn.textContent = redBonusActive ? '(12pts - BONUS!)' : '(6pts)';
+            }
+            
+            // Update blue bucket button
+            const blueBucketBtn = document.querySelector('.bucket-btn[data-alliance="blue"] .bucket-points');
+            if (blueBucketBtn) {
+                blueBucketBtn.textContent = blueBonusActive ? '(12pts - BONUS!)' : '(6pts)';
+            }
+        }
+
+        // Socket event listeners
+        socket.on('score_updated', (data) => {
+            document.querySelector('.red-score').textContent = data.red_score;
+            document.querySelector('.blue-score').textContent = data.blue_score;
+            
+            // Fetch updated match data to get RP status
+            if (currentMatchId) {
+                fetch('/api/matches')
+                    .then(response => response.json())
+                    .then(matches => {
+                        const match = matches.find(m => m.id === currentMatchId);
+                        if (match) {
+                            updateRPs(match);
+                        }
+                    });
+            }
+        });
+
+        socket.on('timer_update', (data) => {
+            updateTimer(data);
+        });
+
+        socket.on('endgame_started', (data) => {
+            document.getElementById('endgame-indicator').textContent = 'ENDGAME - 30 SECONDS REMAINING!';
+        });
+
+        socket.on('bonus_activated', (data) => {
+            if (data.alliance === 'red') {
+                redBonusActive = true;
+            } else if (data.alliance === 'blue') {
+                blueBonusActive = true;
+            }
+            updateBucketButtons();
+            document.getElementById('bonus-indicator').textContent = `${data.alliance.toUpperCase()} BONUS ACTIVE: 15s`;
+        });
+
+        socket.on('bonus_ended', (data) => {
+            if (data.alliance === 'red') {
+                redBonusActive = false;
+            } else if (data.alliance === 'blue') {
+                blueBonusActive = false;
+            }
+            updateBucketButtons();
+            document.getElementById('bonus-indicator').textContent = '';
+        });
+
+        socket.on('match_started', (data) => {
+            currentMatchId = data.match_id;
+            redBonusActive = false;
+            blueBonusActive = false;
+            updateBucketButtons();
+            document.getElementById('match-num').textContent = data.match_number;
+            document.getElementById('current-match').innerHTML = `
+                Red: ${data.red_team1}/${data.red_team2} vs Blue: ${data.blue_team1}/${data.blue_team2}
+            `;
+            document.querySelector('.red-score').textContent = data.red_score || 0;
+            document.querySelector('.blue-score').textContent = data.blue_score || 0;
+        });
+
+        socket.on('match_ended', (data) => {
+            alert('Match ended!');
+            // Refresh match data to get final RPs
+            location.reload();
+        });
+    </script>
 </body>
 </html>

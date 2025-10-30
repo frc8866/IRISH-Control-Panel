@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FTA Control Panel - IRISH</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/fta.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+</head>
+<body>
+    <div class="fta-panel">
+        <div class="header">
+            <h1>FIELD TECHNICAL ADVISOR</h1>
+            <div class="subtitle">IRISH Robotics Competition Control</div>
+        </div>
+
+        <div class="match-setup-section">
+            <h2>Match Setup</h2>
+            
+            <div class="match-info">
+                <div class="info-field">
+                    <label for="match-number">Match Number:</label>
+                    <input type="number" id="match-number" min="1" placeholder="?" value="1">
+                </div>
+            </div>
+
+            <div class="team-setup">
+                <div class="alliance-setup red-setup">
+                    <h3>Red Alliance</h3>
+                    <div class="info-field">
+                        <label for="red-team1">Team 1:</label>
+                        <input type="number" id="red-team1" min="1" placeholder="????">
+                    </div>
+                    <div class="info-field">
+                        <label for="red-team2">Team 2:</label>
+                        <input type="number" id="red-team2" min="1" placeholder="????">
+                    </div>
+                </div>
+
+                <div class="alliance-setup blue-setup">
+                    <h3>Blue Alliance</h3>
+                    <div class="info-field">
+                        <label for="blue-team1">Team 1:</label>
+                        <input type="number" id="blue-team1" min="1" placeholder="????">
+                    </div>
+                    <div class="info-field">
+                        <label for="blue-team2">Team 2:</label>
+                        <input type="number" id="blue-team2" min="1" placeholder="????">
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-buttons">
+                <div class="control-section">
+                    <button id="update-display-btn" class="btn btn-primary">Update Display</button>
+                </div>
+            </div>
+
+            <div id="validation-status" class="validation-status"></div>
+        </div>
+
+        <div class="match-control-section">
+            <h2>Match Control</h2>
+            
+            <div class="status-display">
+                <div class="status-item">
+                    <span class="status-label">Match Status:</span>
+                    <span id="match-status" class="status-value">Not Started</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Timer:</span>
+                    <span id="timer-display" class="status-value">2:15</span>
+                </div>
+            </div>
+
+            <div class="control-buttons">
+                <div class="control-section">
+                    <button id="start-match-btn" class="btn btn-success btn-large" disabled>START MATCH</button>
+                </div>
+            </div>
+            
+            <div id="field-fault-controls" class="field-fault-controls" style="display: none;">
+                <h3>Field Fault</h3>
+                <div class="control-buttons">
+                    <div class="control-section">
+                        <button id="field-fault-btn" class="btn btn-danger">FIELD FAULT (Pause Timer)</button>
+                        <button id="resume-match-btn" class="btn btn-success" style="display: none;">RESUME MATCH</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="match-end-controls" class="match-end-controls" style="display: none;">
+                <h3>Match Complete Controls</h3>
+                <div class="control-buttons">
+                    <button id="review-btn" class="btn btn-warning">Match Under Review</button>
+                    <button id="showcase-btn" class="btn btn-success">Final Score Showcase</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="match-history-section">
+            <h2>Saved Match Data</h2>
+            <div id="saved-matches-list" class="saved-matches-list">
+                <p>No saved matches yet</p>
+            </div>
+            <div class="control-buttons">
+                <div class="control-section">
+                    <button id="save-match-btn" class="btn btn-success">Save Match Data</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        let currentMatchId = null;
+        let matchInProgress = false;
+        let validationPassed = false;
+
+        // Validation function
+        function validateMatchData() {
+            const matchNumber = document.getElementById('match-number').value;
+            const redTeam1 = document.getElementById('red-team1').value;
+            const redTeam2 = document.getElementById('red-team2').value;
+            const blueTeam1 = document.getElementById('blue-team1').value;
+            const blueTeam2 = document.getElementById('blue-team2').value;
+
+            const statusDiv = document.getElementById('validation-status');
+            const startBtn = document.getElementById('start-match-btn');
+
+            if (!matchNumber || matchNumber < 1) {
+                statusDiv.innerHTML = '<span class="error">⚠️ Match number required</span>';
+                validationPassed = false;
+            } else if (!redTeam1 || !redTeam2 || !blueTeam1 || !blueTeam2) {
+                statusDiv.innerHTML = '<span class="error">⚠️ All team numbers required</span>';
+                validationPassed = false;
+            } else {
+                statusDiv.innerHTML = '<span class="success">✓ All data verified - Ready to start</span>';
+                validationPassed = true;
+            }
+
+            // Enable/disable start button based on validation
+            startBtn.disabled = !validationPassed || matchInProgress;
+        }
+
+        // Listen for input changes
+        ['match-number', 'red-team1', 'red-team2', 'blue-team1', 'blue-team2'].forEach(id => {
+            document.getElementById(id).addEventListener('input', validateMatchData);
+        });
+
+        // Save match data
+        document.getElementById('save-match-btn').addEventListener('click', () => {
+            const btn = document.getElementById('save-match-btn');
+            btn.textContent = 'Saving...';
+            btn.disabled = true;
+
+            const matchData = {
+                match_id: currentMatchId,
+                match_number: parseInt(document.getElementById('match-number').value),
+                red_team1: document.getElementById('red-team1').value,
+                red_team2: document.getElementById('red-team2').value,
+                blue_team1: document.getElementById('blue-team1').value,
+                blue_team2: document.getElementById('blue-team2').value
+            };
+
+            socket.emit('fta_save_match', matchData);
+
+            setTimeout(() => {
+                btn.textContent = 'Save Match Data';
+                btn.disabled = false;
+                loadSavedMatches();
+            }, 1000);
+        });
+
+        // Update display
+        document.getElementById('update-display-btn').addEventListener('click', () => {
+            const btn = document.getElementById('update-display-btn');
+            btn.textContent = 'Updating...';
+            btn.disabled = true;
+
+            const matchData = {
+                match_number: parseInt(document.getElementById('match-number').value),
+                red_team1: document.getElementById('red-team1').value || '????',
+                red_team2: document.getElementById('red-team2').value || '????',
+                blue_team1: document.getElementById('blue-team1').value || '????',
+                blue_team2: document.getElementById('blue-team2').value || '????'
+            };
+
+            socket.emit('fta_update_display', matchData);
+
+            setTimeout(() => {
+                btn.textContent = 'Update Display';
+                btn.disabled = false;
+            }, 1000);
+        });
+
+        // Start match
+        document.getElementById('start-match-btn').addEventListener('click', () => {
+            if (!validationPassed) return;
+
+            const matchData = {
+                match_id: currentMatchId,
+                match_number: parseInt(document.getElementById('match-number').value),
+                red_team1: document.getElementById('red-team1').value,
+                red_team2: document.getElementById('red-team2').value,
+                blue_team1: document.getElementById('blue-team1').value,
+                blue_team2: document.getElementById('blue-team2').value
+            };
+
+            socket.emit('fta_start_match', matchData);
+            matchInProgress = true;
+            document.getElementById('match-status').textContent = 'In Progress';
+            document.getElementById('start-match-btn').disabled = true;
+            document.getElementById('field-fault-controls').style.display = 'block';
+        });
+        
+        // Field Fault (Pause)
+        document.getElementById('field-fault-btn').addEventListener('click', () => {
+            socket.emit('fta_field_fault', {});
+            document.getElementById('field-fault-btn').style.display = 'none';
+            document.getElementById('resume-match-btn').style.display = 'inline-block';
+            document.getElementById('match-status').textContent = 'FIELD FAULT';
+        });
+        
+        // Resume Match
+        document.getElementById('resume-match-btn').addEventListener('click', () => {
+            socket.emit('fta_resume_match', {});
+            document.getElementById('field-fault-btn').style.display = 'inline-block';
+            document.getElementById('resume-match-btn').style.display = 'none';
+            document.getElementById('match-status').textContent = 'In Progress';
+        });
+
+        // Match under review
+        document.getElementById('review-btn').addEventListener('click', () => {
+            socket.emit('fta_show_review');
+        });
+
+        // Final score showcase
+        document.getElementById('showcase-btn').addEventListener('click', () => {
+            socket.emit('fta_show_postmatch', { match_id: currentMatchId });
+        });
+
+        // Socket listeners
+        socket.on('match_started', (data) => {
+            matchInProgress = true;
+            document.getElementById('match-status').textContent = 'In Progress';
+        });
+
+        socket.on('timer_update', (data) => {
+            const minutes = Math.floor(data.time_remaining / 60);
+            const seconds = data.time_remaining % 60;
+            document.getElementById('timer-display').textContent = 
+                `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        });
+
+        socket.on('match_ended', (data) => {
+            matchInProgress = false;
+            document.getElementById('match-status').textContent = 'Completed';
+            document.getElementById('match-end-controls').style.display = 'block';
+            document.getElementById('field-fault-controls').style.display = 'none';
+        });
+
+        socket.on('match_data_saved', (data) => {
+            if (data.match_id) {
+                currentMatchId = data.match_id;
+            }
+        });
+
+        validateMatchData();
+    </script>
+</body>
+</html>

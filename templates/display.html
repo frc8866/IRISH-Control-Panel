@@ -3,97 +3,288 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IRISH 2025 - Audience Display</title>
+    <title>Innovation Robotics IRISH Scoreboard</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/display.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
 </head>
 <body>
-    <div class="display-container">
-        <header>
-            <h1>IRISH 2025</h1>
-            <h2>Live Match Scores</h2>
-        </header>
 
-        <div class="scoreboard">
-            <div class="alliance-display red-display">
-                <div class="alliance-header">
-                    <h2>RED ALLIANCE</h2>
-                </div>
-                
-                <div class="score-breakdown">
-                    <div class="score-item">
-                        <span class="label">BUCKET:</span>
-                        <span class="value" id="display_red_bucket">0</span>
-                    </div>
-                    <div class="score-item">
-                        <span class="label">HP:</span>
-                        <span class="value" id="display_red_hp">0</span>
-                    </div>
-                    <div class="score-item">
-                        <span class="label">BENCH:</span>
-                        <span class="value" id="display_red_bench">0</span>
-                    </div>
-                    <div class="score-item">
-                        <span class="label">FOULS:</span>
-                        <span class="value" id="display_red_fouls">0</span>
-                    </div>
-                    <div class="score-item bonus-item">
-                        <span class="label">AND ONE COUNT:</span>
-                        <span class="value" id="display_red_and_one">0</span>
-                    </div>
-                    <div class="bonus-indicator" id="red_bonus_indicator">
-                        <span class="bonus-text">🔥 15-SEC BONUS ACTIVE! 🔥</span>
-                    </div>
-                </div>
+    <header>
+        <div class="teamhosting">Innovation Robotics</div>
+        <div class="matchnum">Match <span id="match-num">?</span></div>
+        <div class="event">IRISH Off Season Event </div>
+    </header>
 
-                <div class="total-display">
-                    <div class="total-label">TOTAL</div>
-                    <div class="total-score" id="display_red_total">0</div>
-                </div>
+    <div class="scoreboard-main">
+        <div class="alliance red-alliance">
+            <div class="team-numbers">
+                <div id="red-team1">????</div>
+                <div id="red-team2">????</div>
             </div>
-
-            <div class="alliance-display blue-display">
-                <div class="alliance-header">
-                    <h2>BLUE ALLIANCE</h2>
-                </div>
-                
-                <div class="score-breakdown">
-                    <div class="score-item">
-                        <span class="label">BUCKET:</span>
-                        <span class="value" id="display_blue_bucket">0</span>
-                    </div>
-                    <div class="score-item">
-                        <span class="label">HP:</span>
-                        <span class="value" id="display_blue_hp">0</span>
-                    </div>
-                    <div class="score-item">
-                        <span class="label">BENCH:</span>
-                        <span class="value" id="display_blue_bench">0</span>
-                    </div>
-                    <div class="score-item">
-                        <span class="label">FOULS:</span>
-                        <span class="value" id="display_blue_fouls">0</span>
-                    </div>
-                    <div class="score-item bonus-item">
-                        <span class="label">AND ONE COUNT:</span>
-                        <span class="value" id="display_blue_and_one">0</span>
-                    </div>
-                    <div class="bonus-indicator" id="blue_bonus_indicator">
-                        <span class="bonus-text">🔥 15-SEC BONUS ACTIVE! 🔥</span>
-                    </div>
-                </div>
-
-                <div class="total-display">
-                    <div class="total-label">TOTAL</div>
-                    <div class="total-score" id="display_blue_total">0</div>
-                </div>
+            <div class="alliance-info">
+                <div class="alliance-score" id="red-score">???</div>
             </div>
         </div>
 
-        <div class="status-bar">
-            <span>Last Updated: <span id="last_update">--:--:--</span></span>
+        <div class="center-panel">
+            <div class="time" id="match-time">2:15</div>
+            <div id="endgame-indicator" class="endgame-indicator" style="color: #ff6b6b; font-weight: bold; display: none;">ENDGAME</div>
+            <div id="bonus-indicator" class="bonus-indicator" style="color: #ffd93d; font-weight: bold; display: none;">BONUS ACTIVE</div>
+        </div>
+
+        <div class="alliance blue-alliance">
+            <div class="team-numbers">
+                <div id="blue-team1">????</div>
+                <div id="blue-team2">????</div>
+            </div>
+            <div class="alliance-info">
+                <div class="alliance-score" id="blue-score">???</div>
+            </div>
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='js/display.js') }}"></script>
+    <script>
+        const socket = io();
+
+        // Function to load and display match data
+        function loadMatchData() {
+            fetch('/api/matches')
+                .then(response => response.json())
+                .then(matches => {
+                    const currentMatch = matches.find(m => m.status === 'in_progress') || matches.find(m => m.status === 'scheduled');
+                    if (currentMatch) {
+                        document.getElementById('match-num').textContent = currentMatch.match_number;
+                        document.getElementById('red-team1').textContent = currentMatch.red_team1 || '????';
+                        document.getElementById('red-team2').textContent = currentMatch.red_team2 || '????';
+                        document.getElementById('blue-team1').textContent = currentMatch.blue_team1 || '????';
+                        document.getElementById('blue-team2').textContent = currentMatch.blue_team2 || '????';
+                        document.getElementById('red-score').textContent = currentMatch.red_score;
+                        document.getElementById('blue-score').textContent = currentMatch.blue_score;
+                    }
+                });
+        }
+
+        // Load current match data on page load
+        loadMatchData();
+
+        socket.on('score_updated', (data) => {
+            document.getElementById('red-score').textContent = data.red_score;
+            document.getElementById('blue-score').textContent = data.blue_score;
+        });
+
+        socket.on('match_started', (data) => {
+            document.getElementById('red-team1').textContent = data.red_team1;
+            document.getElementById('red-team2').textContent = data.red_team2;
+            document.getElementById('blue-team1').textContent = data.blue_team1;
+            document.getElementById('blue-team2').textContent = data.blue_team2;
+            document.getElementById('match-time').textContent = '2:15';
+            document.getElementById('endgame-indicator').style.display = 'none';
+            document.getElementById('bonus-indicator').style.display = 'none';
+        });
+
+        socket.on('timer_update', (data) => {
+            const minutes = Math.floor(data.time_remaining / 60);
+            const seconds = data.time_remaining % 60;
+            document.getElementById('match-time').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+            if (data.is_endgame) {
+                document.getElementById('endgame-indicator').style.display = 'block';
+            }
+
+            if (data.bonus_active) {
+                document.getElementById('bonus-indicator').style.display = 'block';
+                document.getElementById('bonus-indicator').textContent = `BONUS: ${data.bonus_time}s`;
+            } else {
+                document.getElementById('bonus-indicator').style.display = 'none';
+            }
+        });
+
+        socket.on('endgame_started', (data) => {
+            document.getElementById('endgame-indicator').style.display = 'block';
+        });
+
+        socket.on('bonus_activated', (data) => {
+            document.getElementById('bonus-indicator').style.display = 'block';
+        });
+
+        socket.on('bonus_ended', (data) => {
+            document.getElementById('bonus-indicator').style.display = 'none';
+        });
+
+        socket.on('match_ended', (data) => {
+            document.getElementById('match-time').textContent = '0:00';
+            document.getElementById('endgame-indicator').style.display = 'none';
+            document.getElementById('bonus-indicator').style.display = 'none';
+        });
+
+        socket.on('match_data_updated', (matchData) => {
+            // Update display with the provided match data
+            if (matchData) {
+                document.getElementById('match-num').textContent = matchData.match_number;
+                document.getElementById('red-team1').textContent = matchData.red_team1 || '????';
+                document.getElementById('red-team2').textContent = matchData.red_team2 || '????';
+                document.getElementById('blue-team1').textContent = matchData.blue_team1 || '????';
+                document.getElementById('blue-team2').textContent = matchData.blue_team2 || '????';
+            } else {
+                // Fallback: reload all match data
+                loadMatchData();
+            }
+        });
+
+        socket.on('show_review_banner', (data) => {
+            showReviewBanner();
+        });
+
+        socket.on('show_final_score', (data) => {
+            showFinalScore(data);
+        });
+
+        function showReviewBanner() {
+            // Create review banner overlay
+            const banner = document.createElement('div');
+            banner.id = 'review-banner';
+            banner.innerHTML = `
+                <div class="review-banner-content">
+                    <h1>MATCH UNDER REVIEW</h1>
+                    <p>Please wait for FTA decision</p>
+                </div>
+            `;
+            banner.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(255, 0, 0, 0.9);
+                color: white;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 3em;
+                font-weight: bold;
+                z-index: 1000;
+                animation: fadeIn 0.5s ease-in;
+            `;
+            document.body.appendChild(banner);
+
+            // Auto-hide after 10 seconds
+            setTimeout(() => {
+                banner.style.animation = 'fadeOut 0.5s ease-out';
+                setTimeout(() => banner.remove(), 500);
+            }, 10000);
+        }
+
+        function showFinalScore(data) {
+            // Create final score overlay
+            const overlay = document.createElement('div');
+            overlay.id = 'final-score-overlay';
+            overlay.innerHTML = `
+                <div class="final-score-content">
+                    <h1>FINAL SCORE</h1>
+                    <div class="final-teams">
+                        <div class="final-alliance red">
+                            <div class="final-team-numbers">
+                                ${data.red_team1}<br>${data.red_team2}
+                            </div>
+                            <div class="final-score">${data.red_score}</div>
+                            <div class="final-rps">
+                                ${data.red_win_rp ? '✓' : '✗'} Win<br>
+                                ${data.red_teleop_rp ? '✓' : '✗'} Tele-op<br>
+                                ${data.red_climb_rp ? '✓' : '✗'} Climb
+                            </div>
+                        </div>
+                        <div class="final-alliance blue">
+                            <div class="final-team-numbers">
+                                ${data.blue_team1}<br>${data.blue_team2}
+                            </div>
+                            <div class="final-score">${data.blue_score}</div>
+                            <div class="final-rps">
+                                ${data.blue_win_rp ? '✓' : '✗'} Win<br>
+                                ${data.blue_teleop_rp ? '✓' : '✗'} Tele-op<br>
+                                ${data.blue_climb_rp ? '✓' : '✗'} Climb
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            overlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.95);
+                color: white;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 1000;
+                animation: fadeIn 1s ease-in;
+            `;
+            document.body.appendChild(overlay);
+
+            // Auto-hide after 15 seconds
+            setTimeout(() => {
+                overlay.style.animation = 'fadeOut 1s ease-out';
+                setTimeout(() => overlay.remove(), 1000);
+            }, 15000);
+        }
+    </script>
+
+    <style>
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+
+        .review-banner-content {
+            text-align: center;
+        }
+
+        .final-score-content {
+            text-align: center;
+        }
+
+        .final-teams {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 2em;
+        }
+
+        .final-alliance {
+            padding: 2em;
+            border-radius: 10px;
+            min-width: 200px;
+        }
+
+        .final-alliance.red {
+            background: rgba(255, 0, 0, 0.8);
+        }
+
+        .final-alliance.blue {
+            background: rgba(0, 0, 100, 0.8);
+        }
+
+        .final-team-numbers {
+            font-size: 1.5em;
+            margin-bottom: 0.5em;
+        }
+
+        .final-score {
+            font-size: 3em;
+            font-weight: bold;
+            margin-bottom: 0.5em;
+        }
+
+        .final-rps {
+            font-size: 0.8em;
+            line-height: 1.4;
+        }
+    </style>
 </body>
 </html>
