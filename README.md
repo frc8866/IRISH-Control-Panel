@@ -1,42 +1,39 @@
-# IRISH Robotics Control Panel
+# IRISH Control Panel
 
-A comprehensive Flask-based web application for managing FTA, Scoreboard, and referee systems for FIRST Robotics Competition events.
+A comprehensive web-based control system for FIRST Robotics Competition (FRC) events, providing real-time match management, scoring, and display capabilities.
 
-## Features
+## Capabilities
 
-- **Real-time Match Timer**: 2:15 countdown with automatic endgame indicator at 30 seconds
-- **BONUS Timer**: 15-second countdown activated by referees for AND ONE bonus periods
-- **Detailed Scoring System**: Complete implementation of FRC scoring mechanics
-- **Ranking Point Calculation**: Automatic RP tracking (Win, Tele-op, Climb)
-- **Real-time Communication**: WebSocket-based updates between referees and displays
-- **Database Storage**: SQLite database for all match data and events
-- **Multiple Display Views**: Pre-match, Live Match, Post-match with RP display
+### Match Management
+- Complete match setup with team assignments
+- Automated 2:15 match timer with endgame indicators
+- Field fault handling and timer pause/resume
+- Match review and post-match analysis
 
-## Scoring System
+### Scoring System
+- Real-time teleoperated scoring (buckets, human player)
+- Endgame scoring (park, ramp, climb)
+- AND ONE bonus period activation and tracking
+- Penalty management (fouls, tech fouls)
 
-### Teleoperated Scoring
-- **BUCKET Score**: 6 points (normal), 12 points (during BONUS period)
-- **HUMAN PLAYER BUCKET**: 3 points
-- **AND ONE Activation**: Triggers 15-second BONUS timer
+### Ranking Points
+- Automatic calculation of win, tele-op, and climb ranking points
+- Real-time RP updates during matches
 
-### Endgame Scoring (BENCH)
-- **PARK**: 2 points
-- **Slight Ramp**: 6 points
-- **Climb**: 14 points
+### Interfaces
+- **FTA Panel**: Match setup, timer control, field fault management
+- **Referee Panel**: Live scoring controls for both alliances
+- **Display Panel**: Real-time scoreboard with pre-match, live, and post-match views
 
-### Penalties
-- **Foul**: +5 points to opponent
-- **Tech Foul**: +15 points to opponent
-- **BENCH Contact Foul**: Robot disablement
+### Data & Communication
+- SQLite database for persistent match data
+- WebSocket-based real-time updates across all interfaces
+- Event logging and match history
+- Audio notifications for match events
 
-## Ranking Points
-- **Win RP**: 2 RPs for winning alliance
-- **Tele-op RP**: 1 RP if AND ONE BONUS activated
-- **Climb RP**: 1 RP if combined BENCH points ≥ 20
+## Quick Start
 
-## Installation
-
-1. Install Python dependencies:
+1. Install dependencies:
    ```bash
    pip install -r requirements.txt
    ```
@@ -46,32 +43,14 @@ A comprehensive Flask-based web application for managing FTA, Scoreboard, and re
    python app.py
    ```
 
-3. Open your browser to `http://localhost:5000`
+3. Access interfaces:
+   - Main Display: `http://localhost:5000/`
+   - FTA Panel: `http://localhost:5000/fta`
+   - Referee Panel: `http://localhost:5000/referee`
 
-## Usage
+## Technology Stack
 
-- **Display**: `http://localhost:5000/` - Live scoreboard with timer
-- **Pre-match**: `http://localhost:5000/prematch` - Upcoming match preview
-- **Post-match**: `http://localhost:5000/postmatch` - Match results with final RPs
-- **Referee Panel**: `http://localhost:5000/referee` - Complete control interface
-
-## Architecture
-
-- **Backend**: Flask with Socket.IO for real-time communication and threading for timer management
-- **Database**: SQLite with SQLAlchemy ORM
-- **Frontend**: HTML/CSS/JS with Socket.IO client for live updates
-
-## Database Models
-
-- **Team**: Team information
-- **Match**: Comprehensive match data including timer states, scores, and RPs
-- **MatchEvent**: Detailed event logging for all scoring actions
-
-## API Endpoints
-
-- `GET /api/matches` - Retrieve all matches with full details
-- Socket events: `start_match`, `score_event`, `activate_bonus`, `end_match`
-
-## Development
-
-The application uses WebSockets for real-time updates. Multiple clients can connect simultaneously for distributed refereeing.
+- **Backend**: Flask with Socket.IO
+- **Database**: SQLAlchemy with SQLite
+- **Frontend**: HTML/CSS/JavaScript
+- **Real-time**: WebSocket communication

@@ -229,12 +229,12 @@
             document.getElementById('postmatch-red-bucket-normal').textContent = data.red_bucket_normal + data.red_bucket_bonus || 0;
             document.getElementById('postmatch-red-human-bucket').textContent = data.red_human_bucket || 0;
             document.getElementById('postmatch-red-park').textContent = data.red_park + data.red_slight_ramp + data.red_climb || 0;
-            document.getElementById('postmatch-red-fouls').textContent = data.red_fouls || 0;
+            document.getElementById('postmatch-red-fouls').textContent = data.red_fouls + data.red_tech_fouls || 0;
 
             document.getElementById('postmatch-blue-bucket-normal').textContent = data.blue_bucket_normal + data.blue_bucket_bonus || 0;
             document.getElementById('postmatch-blue-human-bucket').textContent = data.blue_human_bucket || 0;
             document.getElementById('postmatch-blue-park').textContent = data.blue_park + data.blue_slight_ramp + data.blue_climb || 0;
-            document.getElementById('postmatch-blue-fouls').textContent = data.blue_fouls || 0;
+            document.getElementById('postmatch-blue-fouls').textContent = data.blue_fouls + data.blue_tech_fouls || 0;
 
             // Ranking points - add active class if earned
             const redWinRP = document.getElementById('postmatch-red-win-rp');
