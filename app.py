@@ -91,9 +91,19 @@ def match_timer():
             calculate_rps(match)
             db.session.commit()
             socketio.emit('match_ended', {'match_id': current_match_id})
+            
+            # Wait 1 second then clear endgame indicator
+            time.sleep(1)
+            socketio.emit('clear_endgame', {'match_id': current_match_id})
 
 def calculate_rps(match):
     """Calculate Ranking Points at match end"""
+    # Reset all RPs before recalculating
+    match.red_win_rp = False
+    match.blue_win_rp = False
+    match.red_climb_rp = False
+    match.blue_climb_rp = False
+    
     # Win RP
     if match.red_score > match.blue_score:
         match.red_win_rp = True
@@ -206,10 +216,10 @@ def get_matches():
     return jsonify([{
         'id': m.id,
         'match_number': m.match_number,
-        'red_team1': m.red_team1.number if m.red_team1 else '',
-        'red_team2': m.red_team2.number if m.red_team2 else '',
-        'blue_team1': m.blue_team1.number if m.blue_team1 else '',
-        'blue_team2': m.blue_team2.number if m.blue_team2 else '',
+        'red_team1': {'number': m.red_team1.number} if m.red_team1 else None,
+        'red_team2': {'number': m.red_team2.number} if m.red_team2 else None,
+        'blue_team1': {'number': m.blue_team1.number} if m.blue_team1 else None,
+        'blue_team2': {'number': m.blue_team2.number} if m.blue_team2 else None,
         'red_score': m.red_score,
         'blue_score': m.blue_score,
         'status': m.status,
@@ -226,6 +236,36 @@ def get_matches():
         'red_win_rp': m.red_win_rp,
         'blue_win_rp': m.blue_win_rp
     } for m in matches])
+
+@app.route('/api/matches/<int:match_id>', methods=['DELETE'])
+def delete_match(match_id):
+    """Delete a match and all its associated events"""
+    match = db.session.get(Match, match_id)
+    if not match:
+        return jsonify({'error': 'Match not found'}), 404
+    
+    # Delete all associated match events first
+    MatchEvent.query.filter_by(match_id=match_id).delete()
+    
+    # Delete the match
+    db.session.delete(match)
+    db.session.commit()
+    
+    return jsonify({'success': True, 'message': f'Match {match_id} deleted'})
+
+@app.route('/api/match_events/<int:match_id>')
+def get_match_events(match_id):
+    """Get all scoring events for a specific match"""
+    events = MatchEvent.query.filter_by(match_id=match_id).order_by(MatchEvent.timestamp.asc()).all()
+    return jsonify([{
+        'id': e.id,
+        'match_id': e.match_id,
+        'event_type': e.event_type,
+        'alliance': e.alliance,
+        'points': e.points,
+        'timestamp': e.timestamp.isoformat() if e.timestamp else None,
+        'details': e.details
+    } for e in events])
 
 @socketio.on('connect')
 def handle_connect():
@@ -251,7 +291,7 @@ def handle_start_match(data):
 
         match.status = 'in_progress'
         match.start_time = datetime.now(UTC)
-        match.match_time_remaining = 135  # 2:15 = 135 seconds
+        match.match_time_remaining = 135  # 0:30 = 30 seconds
         match.is_endgame = False
         match.red_bonus_active = False
         match.red_bonus_time_remaining = 15
@@ -413,6 +453,18 @@ def handle_field_fault(data):
     global field_fault_active
     field_fault_active = True
     socketio.emit('field_fault_started', {'match_id': current_match_id})
+    # Immediately notify displays of timer state so banner shows without waiting for next tick
+    match = db.session.get(Match, current_match_id)
+    socketio.emit('timer_update', {
+        'match_id': current_match_id,
+        'time_remaining': match.match_time_remaining if match else 0,
+        'is_endgame': match.is_endgame if match else False,
+        'red_bonus_active': match.red_bonus_active if match else False,
+        'red_bonus_time': match.red_bonus_time_remaining if match and match.red_bonus_active else 0,
+        'blue_bonus_active': match.blue_bonus_active if match else False,
+        'blue_bonus_time': match.blue_bonus_time_remaining if match and match.blue_bonus_active else 0,
+        'field_fault': field_fault_active
+    })
 
 @socketio.on('fta_resume_match')
 def handle_resume_match(data):
@@ -420,6 +472,18 @@ def handle_resume_match(data):
     global field_fault_active
     field_fault_active = False
     socketio.emit('field_fault_ended', {'match_id': current_match_id})
+    # Immediately notify displays of timer state so banner hides without waiting for next tick
+    match = db.session.get(Match, current_match_id)
+    socketio.emit('timer_update', {
+        'match_id': current_match_id,
+        'time_remaining': match.match_time_remaining if match else 0,
+        'is_endgame': match.is_endgame if match else False,
+        'red_bonus_active': match.red_bonus_active if match else False,
+        'red_bonus_time': match.red_bonus_time_remaining if match and match.red_bonus_active else 0,
+        'blue_bonus_active': match.blue_bonus_active if match else False,
+        'blue_bonus_time': match.blue_bonus_time_remaining if match and match.blue_bonus_active else 0,
+        'field_fault': field_fault_active
+    })
 
 # FTA Socket Handlers
 @socketio.on('fta_save_match')
@@ -590,10 +654,146 @@ def handle_fta_start_match(data):
 
         emit('match_started', {'match_id': match_id})
 
+@socketio.on('fta_finalize_match')
+def handle_fta_finalize_match(data):
+    """Finalize match after review - recalculate RPs with reviewed scores"""
+    match_id = data.get('match_id')
+    match = db.session.get(Match, match_id)
+    if match:
+        # Mark match as finalized
+        match.status = 'finalized'
+        
+        # Recalculate ranking points with final reviewed scores
+        # (scores have already been updated by score_event/delete_event handlers)
+        calculate_rps(match)
+        db.session.commit()
+        
+        print(f"Match {match_id} finalized with reviewed scores.")
+        print(f"  Red: {match.red_score} pts, RPs: {match.red_teleop_rp + match.red_climb_rp + match.red_win_rp}")
+        print(f"  Blue: {match.blue_score} pts, RPs: {match.blue_teleop_rp + match.blue_climb_rp + match.blue_win_rp}")
+        
+        # Notify all clients that match is finalized
+        socketio.emit('match_finalized', {
+            'match_id': match_id,
+            'red_score': match.red_score,
+            'blue_score': match.blue_score
+        })
+
 @socketio.on('fta_show_review')
 def handle_fta_show_review(data=None):
-    # Show review banner on live display
-    socketio.emit('show_review')
+    # Show review banner on live display and send match_id to referee
+    match_id = data.get('match_id') if data else None
+    socketio.emit('show_review', {'match_id': match_id})
+
+@socketio.on('fta_hide_review')
+def handle_fta_hide_review(data=None):
+    # Hide review banner on live display
+    socketio.emit('hide_review')
+
+@socketio.on('delete_event')
+def handle_delete_event(data):
+    """Delete a scoring event and recalculate match scores"""
+    event_id = data.get('event_id')
+    match_id = data.get('match_id')
+    
+    event = db.session.get(MatchEvent, event_id)
+    if event and event.match_id == match_id:
+        match = db.session.get(Match, match_id)
+        if match:
+            # Reverse the scoring for this event
+            event_type = event.event_type
+            alliance = event.alliance
+            points = event.points
+            
+            # Decrease the specific event counter
+            if alliance == 'red':
+                if event_type == 'bucket_normal':
+                    match.red_bucket_normal = max(0, match.red_bucket_normal - 1)
+                    match.red_score = max(0, match.red_score - points)
+                elif event_type == 'bucket_bonus':
+                    match.red_bucket_bonus = max(0, match.red_bucket_bonus - 1)
+                    match.red_score = max(0, match.red_score - points)
+                elif event_type == 'human_bucket':
+                    match.red_human_bucket = max(0, match.red_human_bucket - 1)
+                    match.red_score = max(0, match.red_score - points)
+                elif event_type == 'park':
+                    match.red_park = max(0, match.red_park - 1)
+                    match.red_score = max(0, match.red_score - points)
+                elif event_type == 'slight_ramp':
+                    match.red_slight_ramp = max(0, match.red_slight_ramp - 1)
+                    match.red_score = max(0, match.red_score - points)
+                elif event_type == 'climb':
+                    match.red_climb = max(0, match.red_climb - 1)
+                    match.red_score = max(0, match.red_score - points)
+                elif event_type == 'foul':
+                    match.red_fouls = max(0, match.red_fouls - 1)
+                    match.blue_score = max(0, match.blue_score - points)
+                elif event_type == 'tech_foul':
+                    match.red_tech_fouls = max(0, match.red_tech_fouls - 1)
+                    match.blue_score = max(0, match.blue_score - points)
+            elif alliance == 'blue':
+                if event_type == 'bucket_normal':
+                    match.blue_bucket_normal = max(0, match.blue_bucket_normal - 1)
+                    match.blue_score = max(0, match.blue_score - points)
+                elif event_type == 'bucket_bonus':
+                    match.blue_bucket_bonus = max(0, match.blue_bucket_bonus - 1)
+                    match.blue_score = max(0, match.blue_score - points)
+                elif event_type == 'human_bucket':
+                    match.blue_human_bucket = max(0, match.blue_human_bucket - 1)
+                    match.blue_score = max(0, match.blue_score - points)
+                elif event_type == 'park':
+                    match.blue_park = max(0, match.blue_park - 1)
+                    match.blue_score = max(0, match.blue_score - points)
+                elif event_type == 'slight_ramp':
+                    match.blue_slight_ramp = max(0, match.blue_slight_ramp - 1)
+                    match.blue_score = max(0, match.blue_score - points)
+                elif event_type == 'climb':
+                    match.blue_climb = max(0, match.blue_climb - 1)
+                    match.blue_score = max(0, match.blue_score - points)
+                elif event_type == 'foul':
+                    match.blue_fouls = max(0, match.blue_fouls - 1)
+                    match.red_score = max(0, match.red_score - points)
+                elif event_type == 'tech_foul':
+                    match.blue_tech_fouls = max(0, match.blue_tech_fouls - 1)
+                    match.red_score = max(0, match.red_score - points)
+            
+            # Delete the event
+            db.session.delete(event)
+            db.session.commit()
+            
+            # Emit updated scores
+            socketio.emit('event_deleted', {
+                'match_id': match_id,
+                'red_score': match.red_score,
+                'blue_score': match.blue_score
+            })
+            socketio.emit('score_updated', {
+                'red_score': match.red_score,
+                'blue_score': match.blue_score
+            })
+
+@socketio.on('update_match_scores')
+def handle_update_match_scores(data):
+    """Manually update match scores during review"""
+    match_id = data.get('match_id')
+    red_score = data.get('red_score')
+    blue_score = data.get('blue_score')
+    
+    match = db.session.get(Match, match_id)
+    if match:
+        match.red_score = red_score
+        match.blue_score = blue_score
+        db.session.commit()
+        
+        socketio.emit('scores_updated', {
+            'match_id': match_id,
+            'red_score': red_score,
+            'blue_score': blue_score
+        })
+        socketio.emit('score_updated', {
+            'red_score': red_score,
+            'blue_score': blue_score
+        })
 
 @socketio.on('fta_show_postmatch')
 def handle_fta_show_postmatch(data):

@@ -8,6 +8,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
 </head>
 <body>
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="toast-container"></div>
+
     <div class="fta-panel">
         <div class="header">
             <h1>FIELD TECHNICAL ADVISOR</h1>
@@ -52,6 +55,7 @@
 
             <div class="control-buttons">
                 <div class="control-section">
+                    <button id="new-match-btn" class="btn btn-warning">New Match</button>
                     <button id="update-display-btn" class="btn btn-primary">Update Display</button>
                 </div>
             </div>
@@ -117,6 +121,54 @@
         let matchInProgress = false;
         let validationPassed = false;
 
+        // Toast notification system
+        function showToast(message, type = 'info', duration = 3000) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            
+            container.appendChild(toast);
+            
+            // Trigger animation
+            setTimeout(() => toast.classList.add('show'), 10);
+            
+            // Auto remove
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => container.removeChild(toast), 300);
+            }, duration);
+        }
+
+        // Confirmation dialog (non-blocking)
+        function showConfirm(message, onConfirm) {
+            const overlay = document.createElement('div');
+            overlay.className = 'confirm-overlay';
+            overlay.innerHTML = `
+                <div class="confirm-dialog">
+                    <p>${message}</p>
+                    <div class="confirm-buttons">
+                        <button class="btn btn-danger confirm-yes">Yes</button>
+                        <button class="btn btn-secondary confirm-no">Cancel</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(overlay);
+            setTimeout(() => overlay.classList.add('show'), 10);
+            
+            overlay.querySelector('.confirm-yes').onclick = () => {
+                overlay.classList.remove('show');
+                setTimeout(() => document.body.removeChild(overlay), 300);
+                onConfirm();
+            };
+            
+            overlay.querySelector('.confirm-no').onclick = () => {
+                overlay.classList.remove('show');
+                setTimeout(() => document.body.removeChild(overlay), 300);
+            };
+        }
+
         // Validation function
         function validateMatchData() {
             const matchNumber = document.getElementById('match-number').value;
@@ -148,6 +200,52 @@
             document.getElementById(id).addEventListener('input', validateMatchData);
         });
 
+        // New Match button - clears form and resets
+        document.getElementById('new-match-btn').addEventListener('click', () => {
+            if (matchInProgress) {
+                showToast('Cannot create new match while a match is in progress!', 'error');
+                return;
+            }
+            
+            if (currentMatchId) {
+                showConfirm('This will clear the current match data. Are you sure?', () => {
+                    clearMatchForm();
+                });
+                return;
+            }
+            
+            clearMatchForm();
+        });
+
+        function clearMatchForm() {
+            // Clear the match ID
+            currentMatchId = null;
+            matchInProgress = false;
+            
+            // Clear all form fields
+            document.getElementById('match-number').value = '';
+            document.getElementById('red-team1').value = '';
+            document.getElementById('red-team2').value = '';
+            document.getElementById('blue-team1').value = '';
+            document.getElementById('blue-team2').value = '';
+            
+            // Reset status displays
+            document.getElementById('match-status').textContent = 'Not Started';
+            document.getElementById('timer-display').textContent = '2:15';
+            document.getElementById('validation-status').innerHTML = '';
+            document.getElementById('match-end-controls').style.display = 'none';
+            document.getElementById('field-fault-controls').style.display = 'none';
+            
+            // Refresh matches list
+            loadMatchesList();
+            
+            // Validate (will show error since fields are empty)
+            validateMatchData();
+            
+            showToast('New match form ready', 'success');
+            console.log('New match form cleared and ready');
+        }
+
         // Save match data
         document.getElementById('save-match-btn').addEventListener('click', () => {
             const btn = document.getElementById('save-match-btn');
@@ -168,7 +266,6 @@
             setTimeout(() => {
                 btn.textContent = 'Save Match Data';
                 btn.disabled = false;
-                loadSavedMatches();
             }, 1000);
         });
 
@@ -232,17 +329,37 @@
 
         // Match under review
         document.getElementById('review-btn').addEventListener('click', () => {
-            socket.emit('fta_show_review');
+            console.log('Review button clicked. Current match ID:', currentMatchId);
+            if (!currentMatchId) {
+                showToast('No match is currently loaded. The match must be started first.', 'error', 4000);
+                return;
+            }
+            console.log('Sending fta_show_review with match_id:', currentMatchId);
+            socket.emit('fta_show_review', { match_id: currentMatchId });
         });
 
         // Final score showcase
         document.getElementById('showcase-btn').addEventListener('click', () => {
-            socket.emit('fta_show_postmatch', { match_id: currentMatchId });
+            if (!currentMatchId) {
+                showToast('No match loaded', 'error');
+                return;
+            }
+            
+            // Trigger final save with recalculation of RPs before showing postmatch
+            console.log('Finalizing match scores for match ID:', currentMatchId);
+            socket.emit('fta_finalize_match', { match_id: currentMatchId });
+            
+            // Show postmatch after a brief delay to allow backend to recalculate
+            setTimeout(() => {
+                socket.emit('fta_show_postmatch', { match_id: currentMatchId });
+            }, 500);
         });
 
         // Socket listeners
         socket.on('match_started', (data) => {
             matchInProgress = true;
+            currentMatchId = data.match_id; // Set the match ID when match starts
+            console.log('Match started with ID:', currentMatchId);
             document.getElementById('match-status').textContent = 'In Progress';
         });
 
@@ -258,13 +375,132 @@
             document.getElementById('match-status').textContent = 'Completed';
             document.getElementById('match-end-controls').style.display = 'block';
             document.getElementById('field-fault-controls').style.display = 'none';
+            
+            // Auto-save the match when it ends
+            if (currentMatchId) {
+                console.log('Match ended, auto-saving match ID:', currentMatchId);
+                // Match is already saved with scores by backend, just reload it
+                loadMatchesList();
+            }
+        });
+
+        socket.on('match_finalized', (data) => {
+            console.log('Match finalized:', data);
+            // Refresh the matches list to show updated scores/RPs
+            loadMatchesList();
         });
 
         socket.on('match_data_saved', (data) => {
+            console.log('Match data saved event received:', data);
             if (data.match_id) {
                 currentMatchId = data.match_id;
+                console.log('Current match ID set to:', currentMatchId);
             }
+            // Refresh the matches list
+            loadMatchesList();
         });
+
+        // Function to load and display all matches
+        function loadMatchesList() {
+            fetch('/api/matches')
+                .then(response => response.json())
+                .then(matches => {
+                    const matchesList = document.getElementById('saved-matches-list');
+                    if (matches && matches.length > 0) {
+                        matchesList.innerHTML = matches.map(match => {
+                            const redTeam1 = match.red_team1?.number || '?';
+                            const redTeam2 = match.red_team2?.number || '?';
+                            const blueTeam1 = match.blue_team1?.number || '?';
+                            const blueTeam2 = match.blue_team2?.number || '?';
+                            const redScore = match.red_score || 0;
+                            const blueScore = match.blue_score || 0;
+                            
+                            return `
+                                <div class="match-item ${match.id === currentMatchId ? 'active-match' : ''}" data-match-id="${match.id}">
+                                    <div class="match-info">
+                                        <strong>Match ${match.match_number}</strong>
+                                        <div class="match-teams">
+                                            <span class="red-teams">Red: ${redTeam1}/${redTeam2}</span> vs 
+                                            <span class="blue-teams">Blue: ${blueTeam1}/${blueTeam2}</span>
+                                        </div>
+                                        <div class="match-scores">
+                                            <span class="red-score">${redScore}</span> - <span class="blue-score">${blueScore}</span>
+                                        </div>
+                                    </div>
+                                    <div class="match-actions">
+                                        <button class="btn-small btn-load" onclick="loadMatch(${match.id})">Load</button>
+                                        <button class="btn-small btn-delete" onclick="deleteMatch(${match.id})">Delete</button>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('');
+                    } else {
+                        matchesList.innerHTML = '<p>No saved matches yet</p>';
+                    }
+                })
+                .catch(err => {
+                    console.error('Failed to load matches list:', err);
+                    document.getElementById('saved-matches-list').innerHTML = '<p class="error">Failed to load matches</p>';
+                });
+        }
+
+        // Function to load a specific match into the form
+        function loadMatch(matchId) {
+            fetch('/api/matches')
+                .then(response => response.json())
+                .then(matches => {
+                    const match = matches.find(m => m.id === matchId);
+                    if (match) {
+                        currentMatchId = match.id;
+                        console.log('Loaded match ID:', currentMatchId);
+                        
+                        document.getElementById('match-number').value = match.match_number || '';
+                        document.getElementById('red-team1').value = match.red_team1?.number || '';
+                        document.getElementById('red-team2').value = match.red_team2?.number || '';
+                        document.getElementById('blue-team1').value = match.blue_team1?.number || '';
+                        document.getElementById('blue-team2').value = match.blue_team2?.number || '';
+                        
+                        validateMatchData();
+                        loadMatchesList(); // Refresh to show active match
+                    }
+                })
+                .catch(err => console.error('Failed to load match:', err));
+        }
+
+        // Function to delete a match
+        function deleteMatch(matchId) {
+            showConfirm('Are you sure you want to delete this match? This cannot be undone.', () => {
+                fetch(`/api/matches/${matchId}`, {
+                    method: 'DELETE'
+                })
+                .then(response => {
+                    if (response.ok) {
+                        console.log('Match deleted:', matchId);
+                        showToast('Match deleted successfully', 'success');
+                        if (currentMatchId === matchId) {
+                            currentMatchId = null;
+                        }
+                        loadMatchesList();
+                    } else {
+                        showToast('Failed to delete match', 'error');
+                    }
+                })
+                .catch(err => {
+                    console.error('Failed to delete match:', err);
+                    showToast('Failed to delete match', 'error');
+                });
+            });
+        }
+
+        // Load matches list on page load (but don't auto-load any match data)
+        fetch('/api/matches')
+            .then(response => response.json())
+            .then(matches => {
+                // Just load the matches list for display
+                loadMatchesList();
+                console.log('Matches list loaded, form remains empty');
+            })
+            .catch(err => console.error('Failed to load matches:', err));
 
         validateMatchData();
     </script>

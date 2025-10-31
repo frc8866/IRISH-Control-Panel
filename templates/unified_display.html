@@ -8,6 +8,23 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
 </head>
 <body>
+    <!-- Audio elements for match sounds -->
+    <audio id="audio-start" preload="auto">
+        <source src="{{ url_for('static', filename='sounds/start.wav') }}" type="audio/wav">
+    </audio>
+    <audio id="audio-end" preload="auto">
+        <source src="{{ url_for('static', filename='sounds/end.wav') }}" type="audio/wav">
+    </audio>
+    <audio id="audio-abort" preload="auto">
+        <source src="{{ url_for('static', filename='sounds/abort.wav') }}" type="audio/wav">
+    </audio>
+    <audio id="audio-match-result" preload="auto">
+        <source src="{{ url_for('static', filename='sounds/match_result.wav') }}" type="audio/wav">
+    </audio>
+    <audio id="audio-warning" preload="auto">
+        <source src="{{ url_for('static', filename='sounds/warning.wav') }}" type="audio/wav">
+    </audio>
+
     <!-- Pre-Match Screen -->
     <div id="prematch-screen" class="screen active">
         <header>
@@ -257,6 +274,8 @@
         socket.on('show_live', (data) => {
             updateLiveData(data);
             showScreen('live');
+            // Play match start sound
+            document.getElementById('audio-start').play().catch(e => console.log('Audio play failed:', e));
             // Hide indicators initially
             document.getElementById('endgame-indicator').style.display = 'none';
             document.getElementById('bonus-indicator').style.display = 'none';
@@ -268,6 +287,8 @@
             updatePostmatchData(data);
             // Hide endgame indicator when match ends
             document.getElementById('endgame-indicator').style.display = 'none';
+            // Play match result sound
+            document.getElementById('audio-match-result').play().catch(e => console.log('Audio play failed:', e));
             // Fade transition to postmatch
             const liveScreen = document.getElementById('live-screen');
             liveScreen.classList.add('fade-out');
@@ -296,12 +317,15 @@
             const timerElement = document.getElementById('match-time');
             const fieldFaultBanner = document.getElementById('field-fault-banner');
             
+            console.log('Timer update - field_fault:', data.field_fault);  // Debug log
+            
             // Check if field fault is active
             if (data.field_fault) {
                 timerElement.textContent = 'FIELD FAULT';
                 timerElement.style.color = '#ff0000';
                 timerElement.style.animation = 'pulse 1s infinite';
                 fieldFaultBanner.style.display = 'block';
+                console.log('Field fault banner should be visible');  // Debug log
             } else {
                 const minutes = Math.floor(data.time_remaining / 60);
                 const seconds = data.time_remaining % 60;
@@ -312,7 +336,12 @@
             }
 
             if (data.is_endgame) {
-                document.getElementById('endgame-indicator').style.display = 'block';
+                const endgameIndicator = document.getElementById('endgame-indicator');
+                // Only play sound if endgame just started (wasn't visible before)
+                if (endgameIndicator.style.display !== 'block') {
+                    document.getElementById('audio-warning').play().catch(e => console.log('Audio play failed:', e));
+                }
+                endgameIndicator.style.display = 'block';
             }
 
             // Show bonus status for both alliances
@@ -340,6 +369,27 @@
         socket.on('hide_review', () => {
             document.getElementById('match-time').style.display = 'block';
             document.getElementById('review-banner').style.display = 'none';
+        });
+
+        socket.on('clear_endgame', () => {
+            document.getElementById('endgame-indicator').style.display = 'none';
+            // Play match end sound when timer reaches 0
+            document.getElementById('audio-end').play().catch(e => console.log('Audio play failed:', e));
+        });
+
+        // Field fault events (fallback) - show/hide banner immediately when events arrive
+        socket.on('field_fault_started', () => {
+            console.log('Received field_fault_started');
+            const fieldFaultBanner = document.getElementById('field-fault-banner');
+            if (fieldFaultBanner) fieldFaultBanner.style.display = 'block';
+            // Play abort sound for field fault
+            document.getElementById('audio-abort').play().catch(e => console.log('Audio play failed:', e));
+        });
+
+        socket.on('field_fault_ended', () => {
+            console.log('Received field_fault_ended');
+            const fieldFaultBanner = document.getElementById('field-fault-banner');
+            if (fieldFaultBanner) fieldFaultBanner.style.display = 'none';
         });
 
         // Initial load

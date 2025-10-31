@@ -85,27 +85,78 @@
         </div>
     </div>
 
+    <!-- Review Mode Overlay -->
+    <div id="review-mode-overlay" class="review-overlay" style="display: none;">
+        <div class="review-panel">
+            <div class="review-header">
+                <h2>🔍 MATCH UNDER REVIEW</h2>
+                <button id="exit-review-btn" class="exit-review-btn">Exit Review Mode</button>
+            </div>
+
+            <div class="review-content">
+                <div class="review-section">
+                    <h3>Current Match Scores</h3>
+                    <div class="review-scores-display">
+                        <div class="review-alliance-score red">
+                            <span class="alliance-name">Red Alliance</span>
+                            <span class="score-value" id="review-red-score">0</span>
+                        </div>
+                        <div class="review-alliance-score blue">
+                            <span class="alliance-name">Blue Alliance</span>
+                            <span class="score-value" id="review-blue-score">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="review-section">
+                    <h3>Scoring Events Log</h3>
+                    <div id="scoring-log" class="scoring-log">
+                        <p class="no-events">Loading events...</p>
+                    </div>
+                </div>
+
+                <div class="review-section">
+                    <h3>Add Scoring Event</h3>
+                    <div class="add-event-form">
+                        <div class="form-row">
+                            <label>Alliance:</label>
+                            <select id="add-event-alliance">
+                                <option value="red">Red Alliance</option>
+                                <option value="blue">Blue Alliance</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <label>Event Type:</label>
+                            <select id="add-event-type">
+                                <option value="bucket_normal">Bucket (Normal) - 6pts</option>
+                                <option value="bucket_bonus">Bucket (Bonus) - 12pts</option>
+                                <option value="human_bucket">Human Bucket - 3pts</option>
+                                <option value="park">Park - 2pts</option>
+                                <option value="slight_ramp">Slight Ramp - 6pts</option>
+                                <option value="climb">Climb - 14pts</option>
+                                <option value="foul">Foul - +5 to opponent</option>
+                                <option value="tech_foul">Tech Foul - +15 to opponent</option>
+                            </select>
+                        </div>
+                        <button id="add-event-btn" class="add-event-btn">Add Event</button>
+                    </div>
+                </div>
+
+                <div class="review-actions">
+                    <button id="apply-review-btn" class="apply-btn">Save & Exit Review</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         const socket = io();
         let currentMatchId = null;
         let redBonusActive = false;
         let blueBonusActive = false;
 
-        // Get current match
-        fetch('/api/matches')
-            .then(response => response.json())
-            .then(matches => {
-                const currentMatch = matches.find(m => m.status === 'in_progress') || matches.find(m => m.status === 'scheduled');
-                if (currentMatch) {
-                    currentMatchId = currentMatch.id;
-                    document.getElementById('match-num').textContent = currentMatch.match_number;
-                    document.getElementById('current-match').innerHTML = `
-                        Red: ${currentMatch.red_team1}/${currentMatch.red_team2} vs Blue: ${currentMatch.blue_team1}/${currentMatch.blue_team2}
-                    `;
-                    updateScores(currentMatch);
-                    updateTimer(currentMatch);
-                }
-            });
+        // Initialize with default placeholders - wait for match_started event
+        console.log('Referee panel initialized, waiting for match data...');
 
         function updateScores(match) {
             document.querySelector('.red-score').textContent = match.red_score;
@@ -123,8 +174,6 @@
             if (match.blue_teleop_rp) blueRPs += 1;
             if (match.red_climb_rp) redRPs += 1;
             if (match.blue_climb_rp) blueRPs += 1;
-
-            document.getElementById('rp-display').textContent = `RPs - Red: ${redRPs} | Blue: ${blueRPs}`;
         }
 
         function updateTimer(data) {
@@ -276,9 +325,179 @@
         });
 
         socket.on('match_ended', (data) => {
-            alert('Match ended!');
-            // Refresh match data to get final RPs
-            location.reload();
+            // Don't reload - keep currentMatchId available for review mode
+            console.log('Match ended. Match ID:', currentMatchId);
+            // Could optionally show a notification or update UI here
+        });
+
+        // Review Mode Functionality
+        let reviewMode = false;
+        let matchEvents = [];
+
+        socket.on('show_review', (data) => {
+            // Set the match ID from review mode trigger
+            if (data && data.match_id) {
+                currentMatchId = data.match_id;
+                console.log('Review mode activated for match ID:', currentMatchId);
+            }
+            enterReviewMode();
+        });
+
+        socket.on('hide_review', () => {
+            exitReviewMode();
+        });
+
+        function enterReviewMode() {
+            reviewMode = true;
+            document.getElementById('review-mode-overlay').style.display = 'flex';
+            loadMatchEvents();
+            // Update review scores with current scores
+            document.getElementById('review-red-score').textContent = document.querySelector('.red-score').textContent;
+            document.getElementById('review-blue-score').textContent = document.querySelector('.blue-score').textContent;
+        }
+
+        function exitReviewMode() {
+            reviewMode = false;
+            document.getElementById('review-mode-overlay').style.display = 'none';
+        }
+
+        function loadMatchEvents() {
+            if (!currentMatchId) {
+                console.log('No current match ID');
+                document.getElementById('scoring-log').innerHTML = '<p class="no-events">No match selected</p>';
+                return;
+            }
+            
+            console.log('Loading events for match:', currentMatchId);
+            fetch(`/api/match_events/${currentMatchId}`)
+                .then(response => response.json())
+                .then(events => {
+                    console.log('Loaded events:', events);
+                    matchEvents = events;
+                    displayScoringLog(events);
+                    
+                    // Also update current match scores
+                    fetch('/api/matches')
+                        .then(response => response.json())
+                        .then(matches => {
+                            const match = matches.find(m => m.id === currentMatchId);
+                            if (match) {
+                                document.getElementById('review-red-score').textContent = match.red_score;
+                                document.getElementById('review-blue-score').textContent = match.blue_score;
+                            }
+                        });
+                })
+                .catch(err => {
+                    console.error('Failed to load match events:', err);
+                    document.getElementById('scoring-log').innerHTML = '<p class="error">Failed to load scoring log</p>';
+                });
+        }
+
+        function displayScoringLog(events) {
+            const logContainer = document.getElementById('scoring-log');
+            if (!events || events.length === 0) {
+                logContainer.innerHTML = '<p class="no-events">No scoring events yet</p>';
+                return;
+            }
+
+            logContainer.innerHTML = events.map((event, index) => {
+                const time = new Date(event.timestamp).toLocaleTimeString();
+                const allianceColor = event.alliance === 'red' ? '#ff3333' : '#3333ff';
+                return `
+                    <div class="log-entry" data-event-id="${event.id}">
+                        <span class="log-time">${time}</span>
+                        <span class="log-alliance" style="color: ${allianceColor}">${event.alliance?.toUpperCase() || 'N/A'}</span>
+                        <span class="log-type">${formatEventType(event.event_type)}</span>
+                        <span class="log-points">+${event.points}pts</span>
+                        <button class="delete-event-btn" data-event-id="${event.id}">❌</button>
+                    </div>
+                `;
+            }).join('');
+
+            // Add delete event listeners
+            document.querySelectorAll('.delete-event-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const eventId = btn.dataset.eventId;
+                    deleteEvent(eventId);
+                });
+            });
+        }
+
+        function formatEventType(type) {
+            const typeMap = {
+                'bucket_normal': 'Bucket (Normal)',
+                'bucket_bonus': 'Bucket (Bonus)',
+                'human_bucket': 'Human Bucket',
+                'park': 'Park',
+                'slight_ramp': 'Slight Ramp',
+                'climb': 'Climb',
+                'foul': 'Foul',
+                'tech_foul': 'Tech Foul'
+            };
+            return typeMap[type] || type;
+        }
+
+        function deleteEvent(eventId) {
+            if (!confirm('Delete this scoring event?')) return;
+            
+            socket.emit('delete_event', { event_id: eventId, match_id: currentMatchId });
+        }
+
+        // Add event button
+        document.getElementById('add-event-btn').addEventListener('click', () => {
+            const alliance = document.getElementById('add-event-alliance').value;
+            const eventType = document.getElementById('add-event-type').value;
+            
+            let points = 0;
+            switch(eventType) {
+                case 'bucket_normal': points = 6; break;
+                case 'bucket_bonus': points = 12; break;
+                case 'human_bucket': points = 3; break;
+                case 'park': points = 2; break;
+                case 'slight_ramp': points = 6; break;
+                case 'climb': points = 14; break;
+                case 'foul': points = 5; break;
+                case 'tech_foul': points = 15; break;
+            }
+            
+            if (currentMatchId) {
+                socket.emit('score_event', {
+                    match_id: currentMatchId,
+                    alliance: alliance,
+                    event_type: eventType,
+                    points: points
+                });
+                
+                // Reload events after a short delay
+                setTimeout(() => {
+                    loadMatchEvents();
+                }, 300);
+            }
+        });
+
+        // Exit review button
+        document.getElementById('exit-review-btn').addEventListener('click', () => {
+            exitReviewMode();
+            socket.emit('fta_hide_review');
+        });
+
+        // Apply review changes button - just exit review mode
+        document.getElementById('apply-review-btn').addEventListener('click', () => {
+            exitReviewMode();
+            socket.emit('fta_hide_review');
+        });
+
+        // Listen for event deletions
+        socket.on('event_deleted', (data) => {
+            loadMatchEvents();
+            // Update main scores
+            document.querySelector('.red-score').textContent = data.red_score;
+            document.querySelector('.blue-score').textContent = data.blue_score;
+        });
+
+        socket.on('scores_updated', (data) => {
+            document.querySelector('.red-score').textContent = data.red_score;
+            document.querySelector('.blue-score').textContent = data.blue_score;
         });
     </script>
 </body>

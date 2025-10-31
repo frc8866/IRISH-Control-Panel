@@ -180,6 +180,7 @@ header {
     font-weight: bold;
     color: #ffffff;
     margin-bottom: 20px;
+    text-align: center;
 }
 
 .endgame-indicator {
@@ -219,7 +220,10 @@ header {
     background: #ff0000;
     padding: 20px 40px;
     border-radius: 10px;
+    text-align: center;
     animation: pulse 1s infinite;
+    width: auto;
+    white-space: nowrap;
 }
 
 @keyframes pulse {
