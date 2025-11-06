@@ -24,12 +24,17 @@
     <audio id="audio-warning" preload="auto">
         <source src="{{ url_for('static', filename='sounds/warning.wav') }}" type="audio/wav">
     </audio>
-
+    <!-- Create an alert on first start to make sure the user interacts with the webpage in order to play sound-->
+    <script>
+        window.onload = function() {
+            alert("Welcome to the IRISH Competition Display! Please click OK to enable audio playback for match sounds.");
+        };
+    </script>
     <!-- Pre-Match Screen -->
     <div id="prematch-screen" class="screen active">
         <header>
             <div class="teamhosting">Innovation Robotics</div>
-            <div class="matchnum">Match <span id="prematch-match-num">?</span></div>
+            <div class="matchnum"><span id="prematch-match-type">Qualification</span> Match <span id="prematch-match-num">?</span></div>
             <div class="event">IRISH Off Season Event</div>
         </header>
 
@@ -64,7 +69,7 @@
     <div id="live-screen" class="screen">
         <header>
             <div class="teamhosting">Innovation Robotics</div>
-            <div class="matchnum">Match <span id="live-match-num">?</span></div>
+            <div class="matchnum"><span id="live-match-type">Qualification</span> Match <span id="live-match-num">?</span></div>
             <div class="event">IRISH Off Season Event</div>
         </header>
 
@@ -103,7 +108,7 @@
     <div id="postmatch-screen" class="screen">
         <header>
             <div class="teamhosting">Innovation Robotics</div>
-            <div class="matchnum">Match <span id="postmatch-match-num">?</span> - FINAL</div>
+            <div class="matchnum"><span id="postmatch-match-type">Qualification</span> Match <span id="postmatch-match-num">?</span> - FINAL</div>
             <div class="event">IRISH Off Season Event</div>
         </header>
 
@@ -194,8 +199,19 @@
             }
         }
 
+        // Helper function to capitalize match type for display
+        function formatMatchType(matchType) {
+            if (!matchType) return 'Qualification';
+            // Capitalize first letter of each word
+            return matchType
+                .split('_')
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                .join(' ');
+        }
+
         // Update prematch data
         function updatePrematchData(data) {
+            document.getElementById('prematch-match-type').textContent = formatMatchType(data.match_type);
             document.getElementById('prematch-match-num').textContent = data.match_number || '?';
             document.getElementById('prematch-red-team1').textContent = data.red_team1 || '????';
             document.getElementById('prematch-red-team2').textContent = data.red_team2 || '????';
@@ -205,6 +221,7 @@
 
         // Update live match data
         function updateLiveData(data) {
+            document.getElementById('live-match-type').textContent = formatMatchType(data.match_type);
             document.getElementById('live-match-num').textContent = data.match_number || '?';
             document.getElementById('live-red-team1').textContent = data.red_team1 || '????';
             document.getElementById('live-red-team2').textContent = data.red_team2 || '????';
@@ -217,6 +234,7 @@
         // Update postmatch data
         function updatePostmatchData(data) {
             console.log('Postmatch data received:', data);  // Debug log
+            document.getElementById('postmatch-match-type').textContent = formatMatchType(data.match_type);
             document.getElementById('postmatch-match-num').textContent = data.match_number || '?';
             document.getElementById('postmatch-red-team1').textContent = data.red_team1 || '????';
             document.getElementById('postmatch-red-team2').textContent = data.red_team2 || '????';
@@ -321,7 +339,7 @@
             
             // Check if field fault is active
             if (data.field_fault) {
-                timerElement.textContent = 'FIELD FAULT';
+                timerElement.textContent = 'GAME PAUSED';
                 timerElement.style.color = '#ff0000';
                 timerElement.style.animation = 'pulse 1s infinite';
                 fieldFaultBanner.style.display = 'block';
@@ -390,6 +408,11 @@
             console.log('Received field_fault_ended');
             const fieldFaultBanner = document.getElementById('field-fault-banner');
             if (fieldFaultBanner) fieldFaultBanner.style.display = 'none';
+        });
+
+        socket.on('match_stopped', () => {
+            console.log('Match has been stopped');
+            showScreen('prematch');
         });
 
         // Initial load

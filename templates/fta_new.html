@@ -24,6 +24,12 @@
                 <div class="info-field">
                     <label for="match-number">Match Number:</label>
                     <input type="number" id="match-number" min="1" placeholder="?" value="1">
+                    <label for="match-type">Match Type:</label>
+                    <select id="match-type">
+                        <option value="qualification">Qualification</option>
+                        <option value="playoff">Playoff</option>
+                        <option value="final">Final</option>
+                    </select>
                 </div>
             </div>
 
@@ -80,6 +86,7 @@
             <div class="control-buttons">
                 <div class="control-section">
                     <button id="start-match-btn" class="btn btn-success btn-large" disabled>START MATCH</button>
+                    <button id="stop-match-btn" class="btn btn-danger btn-large">STOP MATCH</button>
                 </div>
             </div>
             
@@ -120,6 +127,16 @@
         let currentMatchId = null;
         let matchInProgress = false;
         let validationPassed = false;
+
+        function fetchNextMatchNumber() {
+            fetch('/api/next_match_number')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('match-number').value = data.next_match_number;
+                    validateMatchData();
+                })
+                .catch(err => console.error('Failed to fetch next match number:', err));
+        }
 
         // Toast notification system
         function showToast(message, type = 'info', duration = 3000) {
@@ -171,6 +188,7 @@
 
         // Validation function
         function validateMatchData() {
+            const matchType = document.getElementById('match-type').value;
             const matchNumber = document.getElementById('match-number').value;
             const redTeam1 = document.getElementById('red-team1').value;
             const redTeam2 = document.getElementById('red-team2').value;
@@ -179,12 +197,16 @@
 
             const statusDiv = document.getElementById('validation-status');
             const startBtn = document.getElementById('start-match-btn');
+            const stopBtn = document.getElementById('stop-match-btn');
 
             if (!matchNumber || matchNumber < 1) {
                 statusDiv.innerHTML = '<span class="error">⚠️ Match number required</span>';
                 validationPassed = false;
             } else if (!redTeam1 || !redTeam2 || !blueTeam1 || !blueTeam2) {
                 statusDiv.innerHTML = '<span class="error">⚠️ All team numbers required</span>';
+                validationPassed = false;
+            } else if (!matchType) {
+                statusDiv.innerHTML = '<span class="error">⚠️ Match type required</span>';
                 validationPassed = false;
             } else {
                 statusDiv.innerHTML = '<span class="success">✓ All data verified - Ready to start</span>';
@@ -193,10 +215,11 @@
 
             // Enable/disable start button based on validation
             startBtn.disabled = !validationPassed || matchInProgress;
+            stopBtn.disabled = !matchInProgress;
         }
 
         // Listen for input changes
-        ['match-number', 'red-team1', 'red-team2', 'blue-team1', 'blue-team2'].forEach(id => {
+        ['match-number', 'match-type', 'red-team1', 'red-team2', 'blue-team1', 'blue-team2'].forEach(id => {
             document.getElementById(id).addEventListener('input', validateMatchData);
         });
 
@@ -228,6 +251,7 @@
             document.getElementById('red-team2').value = '';
             document.getElementById('blue-team1').value = '';
             document.getElementById('blue-team2').value = '';
+            document.getElementById('match-type').value = '';
             
             // Reset status displays
             document.getElementById('match-status').textContent = 'Not Started';
@@ -241,6 +265,8 @@
             
             // Validate (will show error since fields are empty)
             validateMatchData();
+
+            fetchNextMatchNumber();
             
             showToast('New match form ready', 'success');
             console.log('New match form cleared and ready');
@@ -252,9 +278,11 @@
             btn.textContent = 'Saving...';
             btn.disabled = true;
 
+            const matchNumberRaw = document.getElementById('match-number').value;
             const matchData = {
+                match_type: document.getElementById('match-type').value,
                 match_id: currentMatchId,
-                match_number: parseInt(document.getElementById('match-number').value),
+                match_number: matchNumberRaw ? parseInt(matchNumberRaw) : undefined,
                 red_team1: document.getElementById('red-team1').value,
                 red_team2: document.getElementById('red-team2').value,
                 blue_team1: document.getElementById('blue-team1').value,
@@ -275,8 +303,11 @@
             btn.textContent = 'Updating...';
             btn.disabled = true;
 
+            const matchNumberRaw = document.getElementById('match-number').value;
+
             const matchData = {
-                match_number: parseInt(document.getElementById('match-number').value),
+                match_number: matchNumberRaw ? parseInt(matchNumberRaw) : undefined,
+                match_type: document.getElementById('match-type').value,
                 red_team1: document.getElementById('red-team1').value || '????',
                 red_team2: document.getElementById('red-team2').value || '????',
                 blue_team1: document.getElementById('blue-team1').value || '????',
@@ -294,21 +325,34 @@
         // Start match
         document.getElementById('start-match-btn').addEventListener('click', () => {
             if (!validationPassed) return;
-
+            const matchNumberRaw = document.getElementById('match-number').value;
             const matchData = {
                 match_id: currentMatchId,
-                match_number: parseInt(document.getElementById('match-number').value),
+                match_number: matchNumberRaw ? parseInt(matchNumberRaw) : undefined,
+                match_type: document.getElementById('match-type').value,
                 red_team1: document.getElementById('red-team1').value,
                 red_team2: document.getElementById('red-team2').value,
                 blue_team1: document.getElementById('blue-team1').value,
                 blue_team2: document.getElementById('blue-team2').value
             };
 
+
             socket.emit('fta_start_match', matchData);
             matchInProgress = true;
             document.getElementById('match-status').textContent = 'In Progress';
             document.getElementById('start-match-btn').disabled = true;
             document.getElementById('field-fault-controls').style.display = 'block';
+            const stopBtn = document.getElementById('stop-match-btn');
+            stopBtn.disabled = false;
+        });
+
+        document.getElementById('stop-match-btn').addEventListener('click', () => {
+            socket.emit('fta_stop_match', {});
+            matchInProgress = false;
+            document.getElementById('match-status').textContent = 'Stopped';
+            document.getElementById('start-match-btn').disabled = false;
+            document.getElementById('field-fault-controls').style.display = 'none';
+            document.getElementById('timer-display').textContent = '2:15';
         });
         
         // Field Fault (Pause)
@@ -408,6 +452,7 @@
                     const matchesList = document.getElementById('saved-matches-list');
                     if (matches && matches.length > 0) {
                         matchesList.innerHTML = matches.map(match => {
+                            const matchType = match.match_type || '?';
                             const redTeam1 = match.red_team1?.number || '?';
                             const redTeam2 = match.red_team2?.number || '?';
                             const blueTeam1 = match.blue_team1?.number || '?';
@@ -418,7 +463,7 @@
                             return `
                                 <div class="match-item ${match.id === currentMatchId ? 'active-match' : ''}" data-match-id="${match.id}">
                                     <div class="match-info">
-                                        <strong>Match ${match.match_number}</strong>
+                                        <strong>${matchType} ${match.match_number}</strong>
                                         <div class="match-teams">
                                             <span class="red-teams">Red: ${redTeam1}/${redTeam2}</span> vs 
                                             <span class="blue-teams">Blue: ${blueTeam1}/${blueTeam2}</span>
@@ -454,6 +499,7 @@
                         currentMatchId = match.id;
                         console.log('Loaded match ID:', currentMatchId);
                         
+                        document.getElementById('match-type').value = match.match_type || '';
                         document.getElementById('match-number').value = match.match_number || '';
                         document.getElementById('red-team1').value = match.red_team1?.number || '';
                         document.getElementById('red-team2').value = match.red_team2?.number || '';

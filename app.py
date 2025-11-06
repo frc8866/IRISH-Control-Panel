@@ -168,6 +168,7 @@ def get_current_match():
         return jsonify({
             'id': match.id,
             'match_number': match.match_number,
+            'match_type': match.match_type,  # Add this line
             'red_team1': match.red_team1.number if match.red_team1 else '',
             'red_team2': match.red_team2.number if match.red_team2 else '',
             'blue_team1': match.blue_team1.number if match.blue_team1 else '',
@@ -201,6 +202,7 @@ def get_current_match():
     else:
         return jsonify({
             'match_number': 1,
+            'match_type': 'Qualification',  # Add this line
             'red_team1': '',
             'red_team2': '',
             'blue_team1': '',
@@ -216,6 +218,7 @@ def get_matches():
     return jsonify([{
         'id': m.id,
         'match_number': m.match_number,
+        'match_type': m.match_type,  # Add this line
         'red_team1': {'number': m.red_team1.number} if m.red_team1 else None,
         'red_team2': {'number': m.red_team2.number} if m.red_team2 else None,
         'blue_team1': {'number': m.blue_team1.number} if m.blue_team1 else None,
@@ -485,9 +488,19 @@ def handle_resume_match(data):
         'field_fault': field_fault_active
     })
 
+def get_next_match_number():
+    with app.app_context():
+        last = db.session.query(db.func.max(Match.match_number)).scalar()
+        return (last or 0) + 1
+    
+@app.route('/api/next_match_number')
+def api_next_match_number():
+    return jsonify({'next_match_number': get_next_match_number()})
+
 # FTA Socket Handlers
 @socketio.on('fta_save_match')
 def handle_fta_save_match(data):
+    match_type = data.get('match_type', 'Qualification')  # Get match_type with default
     match_id = data.get('match_id')
     match_number = data.get('match_number')
     red_team1_num = data.get('red_team1')
@@ -495,13 +508,23 @@ def handle_fta_save_match(data):
     blue_team1_num = data.get('blue_team1')
     blue_team2_num = data.get('blue_team2')
 
+    if match_number:
+        try:
+            match_number = int(match_number)
+        except Exception:
+            match_number = get_next_match_number()
+    else:
+        match_number = get_next_match_number()
+
     # If no match_id provided, create a new match
     if not match_id:
-        match = Match(match_number=match_number or 1)
+        match = Match(match_number=match_number, match_type=match_type)  # Add match_type
     else:
         match = db.session.get(Match, match_id)
         if not match:
-            match = Match(match_number=match_number or 1)
+            match = Match(match_number=match_number, match_type=match_type)  # Add match_type
+        else:
+            match.match_type = match_type  # Update match_type
 
     # Auto-create teams if they don't exist and assign them
     if red_team1_num and red_team1_num.strip():
@@ -556,7 +579,8 @@ def handle_fta_save_match(data):
 def handle_fta_update_display(data):
     # Send data directly to display to show in prematch
     socketio.emit('show_prematch', {
-        'match_number': data.get('match_number', 1),
+        'match_type': data.get('match_type', '?'),
+        'match_number': data.get('match_number', '?'),
         'red_team1': data.get('red_team1', '????'),
         'red_team2': data.get('red_team2', '????'),
         'blue_team1': data.get('blue_team1', '????'),
@@ -569,6 +593,7 @@ def handle_fta_start_match(data):
 
     # Save or get the match first
     match_id = data.get('match_id')
+    match_type = data.get('match_type', 'Qualification')  # Get match_type with default
     
     # Store team numbers for later use
     team_numbers = {
@@ -579,9 +604,21 @@ def handle_fta_start_match(data):
     }
     
     if not match_id:
+
+        supplied_num = data.get('match_number')
+        if supplied_num:
+            try:
+                match_number = int(supplied_num)
+            except Exception:
+                match_number = get_next_match_number()
+        else:
+            match_number = get_next_match_number()
+
+
         # Create new match
         match = Match(
-            match_number=data.get('match_number', 1),
+            match_type=match_type,  # This line already exists, keep it
+            match_number=match_number,
             status='in_progress',
             start_time=datetime.now(UTC),
             match_time_remaining=135,
@@ -611,6 +648,7 @@ def handle_fta_start_match(data):
     else:
         match = db.session.get(Match, match_id)
         if match:
+            match.match_type = match_type  # Update match_type for existing match
             match.status = 'in_progress'
             match.start_time = datetime.now(UTC)
             match.match_time_remaining = 135
@@ -630,6 +668,7 @@ def handle_fta_start_match(data):
 
         # Transition display to live view with team numbers (use stored numbers as fallback)
         socketio.emit('show_live', {
+            'match_type': match.match_type,  # Add this line
             'match_number': match.match_number,
             'red_team1': match.red_team1.number if match.red_team1 else team_numbers.get('red_team1', '????'),
             'red_team2': match.red_team2.number if match.red_team2 else team_numbers.get('red_team2', '????'),
@@ -642,6 +681,7 @@ def handle_fta_start_match(data):
         # Update referee panel with new match info
         socketio.emit('match_started', {
             'match_id': match_id,
+            'match_type': match.match_type,  # Add this line
             'match_number': match.match_number,
             'red_team1': match.red_team1.number if match.red_team1 else team_numbers.get('red_team1', '????'),
             'red_team2': match.red_team2.number if match.red_team2 else team_numbers.get('red_team2', '????'),
@@ -815,6 +855,7 @@ def handle_fta_show_postmatch(data):
         
 
         socketio.emit('show_postmatch', {
+            'match_type': match.match_type,  # Add this line
             'match_number': match.match_number,
             'red_team1': match.red_team1.number if match.red_team1 else '????',
             'red_team2': match.red_team2.number if match.red_team2 else '????',
@@ -854,6 +895,7 @@ def handle_load_match_data(data):
         # No match ID provided, emit empty data
         emit('match_data_loaded', {
             'match_id': None,
+            'match_type': 'Qualification',  # Add this line
             'match_number': 1,
             'red_team1': '',
             'red_team2': '',
@@ -867,6 +909,7 @@ def handle_load_match_data(data):
     if match:
         emit('match_data_loaded', {
             'match_id': match.id,
+            'match_type': match.match_type,  # Add this line
             'match_number': match.match_number,
             'red_team1': match.red_team1.number if match.red_team1 else '',
             'red_team2': match.red_team2.number if match.red_team2 else '',
@@ -878,6 +921,7 @@ def handle_load_match_data(data):
         # Match not found, emit empty data
         emit('match_data_loaded', {
             'match_id': None,
+            'match_type': 'Qualification',  # Add this line
             'match_number': 1,
             'red_team1': '',
             'red_team2': '',
@@ -886,5 +930,29 @@ def handle_load_match_data(data):
             'status': 'scheduled'
         })
 
+@socketio.on('fta_stop_match')
+def handle_fta_stop_match(data):
+    """Stop the current match and reset timer"""
+    global timer_running, current_match_id
+    match_id = data.get('match_id') or current_match_id
+    
+    if not match_id:
+        print("Warning: No match_id provided and no current match is running")
+        return
+    
+    match = db.session.get(Match, match_id)
+    if match:
+        timer_running = False
+        match.status = 'stopped'
+        match.match_time_remaining = 0
+        match.is_endgame = False
+        match.red_bonus_active = False
+        match.red_bonus_time_remaining = 0
+        match.blue_bonus_active = False
+        match.blue_bonus_time_remaining = 0
+        db.session.commit()
+        socketio.emit('match_stopped', {'match_id': match_id})
+        print(f"Match {match_id} stopped successfully")
+
 if __name__ == '__main__':
-    socketio.run(app, debug=True, host='0.0.0.0', port=5000)
+    socketio.run(app, debug=False, host='0.0.0.0', port=5000)
