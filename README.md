@@ -8,6 +8,7 @@ A comprehensive web-based control system for FIRST Robotics Competition (FRC) ev
 - Complete match setup with team assignments
 - Automated 2:15 match timer with endgame indicators
 - Field fault handling and timer pause/resume
+- Ability to stop match and reset incase of accidental start
 - Match review and post-match analysis
 
 ### Scoring System
