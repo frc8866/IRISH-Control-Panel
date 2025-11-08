@@ -7,6 +7,15 @@ class Team(db.Model):
     number = db.Column(db.Integer, unique=True, nullable=False)
     name = db.Column(db.String(100), nullable=False)
 
+class TeamRanking(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    team_id = db.Column(db.Integer, db.ForeignKey('team.id'), nullable=False, unique=True)
+    ranking_points = db.Column(db.Integer, default=0)
+    previous_rank = db.Column(db.Integer, nullable=True)  # Track previous rank for comparison
+    current_rank = db.Column(db.Integer, nullable=True)
+    
+    team = db.relationship('Team', backref=db.backref('ranking', uselist=False))
+
 class Match(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     match_number = db.Column(db.Integer, nullable=False)

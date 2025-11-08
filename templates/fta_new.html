@@ -86,6 +86,7 @@
             <div class="control-buttons">
                 <div class="control-section">
                     <button id="start-match-btn" class="btn btn-success btn-large" disabled>START MATCH</button>
+                    <button id="quick-start-btn" class="btn btn-warning btn-large" disabled>QUICK START (15s)</button>
                     <button id="stop-match-btn" class="btn btn-danger btn-large">STOP MATCH</button>
                 </div>
             </div>
@@ -197,6 +198,7 @@
 
             const statusDiv = document.getElementById('validation-status');
             const startBtn = document.getElementById('start-match-btn');
+            const quickStartBtn = document.getElementById('quick-start-btn');
             const stopBtn = document.getElementById('stop-match-btn');
 
             if (!matchNumber || matchNumber < 1) {
@@ -213,8 +215,9 @@
                 validationPassed = true;
             }
 
-            // Enable/disable start button based on validation
+            // Enable/disable start buttons based on validation
             startBtn.disabled = !validationPassed || matchInProgress;
+            quickStartBtn.disabled = !validationPassed || matchInProgress;
             stopBtn.disabled = !matchInProgress;
         }
 
@@ -333,14 +336,41 @@
                 red_team1: document.getElementById('red-team1').value,
                 red_team2: document.getElementById('red-team2').value,
                 blue_team1: document.getElementById('blue-team1').value,
-                blue_team2: document.getElementById('blue-team2').value
+                blue_team2: document.getElementById('blue-team2').value,
+                quick_start: false
             };
-
 
             socket.emit('fta_start_match', matchData);
             matchInProgress = true;
             document.getElementById('match-status').textContent = 'In Progress';
             document.getElementById('start-match-btn').disabled = true;
+            document.getElementById('quick-start-btn').disabled = true;
+            document.getElementById('field-fault-controls').style.display = 'block';
+            const stopBtn = document.getElementById('stop-match-btn');
+            stopBtn.disabled = false;
+        });
+
+        // Quick Start (15s) match
+        document.getElementById('quick-start-btn').addEventListener('click', () => {
+            if (!validationPassed) return;
+            const matchNumberRaw = document.getElementById('match-number').value;
+            const matchData = {
+                match_id: currentMatchId,
+                match_number: matchNumberRaw ? parseInt(matchNumberRaw) : undefined,
+                match_type: document.getElementById('match-type').value,
+                red_team1: document.getElementById('red-team1').value,
+                red_team2: document.getElementById('red-team2').value,
+                blue_team1: document.getElementById('blue-team1').value,
+                blue_team2: document.getElementById('blue-team2').value,
+                quick_start: true
+            };
+
+
+            socket.emit('fta_start_match', matchData);
+            matchInProgress = true;
+            document.getElementById('match-status').textContent = 'In Progress (Quick)';
+            document.getElementById('start-match-btn').disabled = true;
+            document.getElementById('quick-start-btn').disabled = true;
             document.getElementById('field-fault-controls').style.display = 'block';
             const stopBtn = document.getElementById('stop-match-btn');
             stopBtn.disabled = false;
@@ -351,6 +381,7 @@
             matchInProgress = false;
             document.getElementById('match-status').textContent = 'Stopped';
             document.getElementById('start-match-btn').disabled = false;
+            document.getElementById('quick-start-btn').disabled = false;
             document.getElementById('field-fault-controls').style.display = 'none';
             document.getElementById('timer-display').textContent = '2:15';
         });
@@ -420,12 +451,24 @@
             document.getElementById('match-end-controls').style.display = 'block';
             document.getElementById('field-fault-controls').style.display = 'none';
             
+            // Disable showcase button until review is complete
+            document.getElementById('showcase-btn').disabled = true;
+            document.getElementById('showcase-btn').textContent = 'Final Score Showcase (Waiting for Review)';
+            
             // Auto-save the match when it ends
             if (currentMatchId) {
                 console.log('Match ended, auto-saving match ID:', currentMatchId);
                 // Match is already saved with scores by backend, just reload it
                 loadMatchesList();
             }
+        });
+
+        // Enable showcase button when review is complete
+        socket.on('review_complete', (data) => {
+            console.log('Review complete, enabling showcase button');
+            document.getElementById('showcase-btn').disabled = false;
+            document.getElementById('showcase-btn').textContent = 'Final Score Showcase';
+            showToast('Review complete! You can now showcase final scores.', 'success');
         });
 
         socket.on('match_finalized', (data) => {

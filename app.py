@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO, emit
-from models import db, Team, Match, MatchEvent
+from models import db, Team, Match, MatchEvent, TeamRanking
 import os
 from datetime import datetime, UTC
 import threading
@@ -122,6 +122,63 @@ def calculate_rps(match):
         match.red_climb_rp = True
     if blue_climb_points >= 20:
         match.blue_climb_rp = True
+    
+    # Distribute RPs to teams
+    red_total_rps = int(match.red_win_rp) + int(match.red_teleop_rp) + int(match.red_climb_rp)
+    blue_total_rps = int(match.blue_win_rp) + int(match.blue_teleop_rp) + int(match.blue_climb_rp)
+    
+    # Add RPs to each team on the red alliance
+    if match.red_team1:
+        add_rps_to_team(match.red_team1.id, red_total_rps)
+    if match.red_team2:
+        add_rps_to_team(match.red_team2.id, red_total_rps)
+    
+    # Add RPs to each team on the blue alliance
+    if match.blue_team1:
+        add_rps_to_team(match.blue_team1.id, blue_total_rps)
+    if match.blue_team2:
+        add_rps_to_team(match.blue_team2.id, blue_total_rps)
+    
+    # Update rankings after distributing points
+    update_rankings()
+
+def add_rps_to_team(team_id, rps):
+    """Add ranking points to a team"""
+    ranking = TeamRanking.query.filter_by(team_id=team_id).first()
+    if not ranking:
+        ranking = TeamRanking(team_id=team_id, ranking_points=0)
+        db.session.add(ranking)
+    ranking.ranking_points += rps
+    db.session.commit()
+
+def update_rankings():
+    """Recalculate all team rankings and update their rank positions"""
+    # Get all rankings ordered by points (descending)
+    rankings = TeamRanking.query.order_by(TeamRanking.ranking_points.desc()).all()
+    
+    # Update previous_rank before changing current_rank
+    for ranking in rankings:
+        ranking.previous_rank = ranking.current_rank
+    
+    # Assign new ranks
+    for idx, ranking in enumerate(rankings):
+        ranking.current_rank = idx + 1
+    
+    db.session.commit()
+    
+    # Notify all clients that rankings have been updated
+    socketio.emit('rankings_updated')
+
+def get_rank_change_indicator(ranking):
+    """Get the arrow indicator for rank change"""
+    if ranking.previous_rank is None:
+        return '—'  # Dash for first ranking
+    elif ranking.current_rank < ranking.previous_rank:
+        return '↑'  # Up arrow (lower rank number is better)
+    elif ranking.current_rank > ranking.previous_rank:
+        return '↓'  # Down arrow
+    else:
+        return '—'  # Dash for no change
 
 # Sample data initialization
 def init_sample_data():
@@ -154,6 +211,18 @@ def fta():
 @app.route('/referee')
 def referee():
     return render_template('referee.html')
+
+@app.route('/rankings')
+def rankings():
+    return render_template('rankings.html')
+
+@app.route('/teams')
+def team_manager():
+    return render_template('team_manager.html')
+
+@app.route('/admin')
+def admin_panel():
+    return render_template('admin.html')
 
 @app.route('/api/current_match')
 def get_current_match():
@@ -269,6 +338,272 @@ def get_match_events(match_id):
         'timestamp': e.timestamp.isoformat() if e.timestamp else None,
         'details': e.details
     } for e in events])
+
+@app.route('/api/rankings')
+def get_rankings():
+    """Get all teams ranked by ranking points with their rank change indicators"""
+    rankings = TeamRanking.query.order_by(TeamRanking.ranking_points.desc()).all()
+    return jsonify([{
+        'team_number': ranking.team.number,
+        'team_name': ranking.team.name,
+        'ranking_points': ranking.ranking_points,
+        'rank': ranking.current_rank,
+        'rank_change': get_rank_change_indicator(ranking)
+    } for ranking in rankings])
+
+@app.route('/api/team_rank/<int:team_number>')
+def get_team_rank(team_number):
+    """Get rank information for a specific team"""
+    team = Team.query.filter_by(number=team_number).first()
+    if not team:
+        return jsonify({'error': 'Team not found'}), 404
+    
+    ranking = TeamRanking.query.filter_by(team_id=team.id).first()
+    if not ranking:
+        return jsonify({
+            'team_number': team_number,
+            'rank': None,
+            'ranking_points': 0,
+            'rank_change': '—'
+        })
+    
+    return jsonify({
+        'team_number': team_number,
+        'rank': ranking.current_rank,
+        'ranking_points': ranking.ranking_points,
+        'rank_change': get_rank_change_indicator(ranking)
+    })
+
+@app.route('/api/teams', methods=['GET', 'POST'])
+def manage_teams():
+    """Get all teams or add a new team"""
+    if request.method == 'GET':
+        teams = Team.query.order_by(Team.number).all()
+        return jsonify([{
+            'id': t.id,
+            'number': t.number,
+            'name': t.name
+        } for t in teams])
+    
+    elif request.method == 'POST':
+        data = request.json
+        number = data.get('number')
+        name = data.get('name')
+        
+        if not number or not name:
+            return jsonify({'error': 'Team number and name are required'}), 400
+        
+        # Check if team number already exists
+        existing = Team.query.filter_by(number=number).first()
+        if existing:
+            return jsonify({'error': f'Team {number} already exists'}), 400
+        
+        team = Team(number=number, name=name)
+        db.session.add(team)
+        db.session.commit()
+        
+        return jsonify({
+            'id': team.id,
+            'number': team.number,
+            'name': team.name,
+            'message': 'Team added successfully'
+        }), 201
+
+@app.route('/api/teams/<int:team_id>', methods=['PUT', 'DELETE'])
+def modify_team(team_id):
+    """Update or delete a team"""
+    team = db.session.get(Team, team_id)
+    if not team:
+        return jsonify({'error': 'Team not found'}), 404
+    
+    if request.method == 'PUT':
+        data = request.json
+        new_name = data.get('name')
+        
+        if not new_name:
+            return jsonify({'error': 'Team name is required'}), 400
+        
+        team.name = new_name
+        db.session.commit()
+        
+        return jsonify({
+            'id': team.id,
+            'number': team.number,
+            'name': team.name,
+            'message': 'Team updated successfully'
+        })
+    
+    elif request.method == 'DELETE':
+        # Check if team has matches
+        matches_count = Match.query.filter(
+            (Match.red_team1_id == team_id) |
+            (Match.red_team2_id == team_id) |
+            (Match.blue_team1_id == team_id) |
+            (Match.blue_team2_id == team_id)
+        ).count()
+        
+        if matches_count > 0:
+            return jsonify({
+                'error': f'Cannot delete team. Team has {matches_count} associated match(es). Delete matches first.'
+            }), 400
+        
+        # Delete associated ranking if exists
+        TeamRanking.query.filter_by(team_id=team_id).delete()
+        
+        db.session.delete(team)
+        db.session.commit()
+        
+        return jsonify({'message': 'Team deleted successfully'})
+
+# ========== ADMIN API ENDPOINTS ==========
+
+@app.route('/api/admin/matches/<int:match_id>', methods=['PUT'])
+def admin_update_match(match_id):
+    """Admin endpoint to update match details"""
+    match = db.session.get(Match, match_id)
+    if not match:
+        return jsonify({'error': 'Match not found'}), 404
+    
+    data = request.json
+    
+    # Update match fields
+    if 'match_number' in data:
+        match.match_number = data['match_number']
+    if 'match_type' in data:
+        match.match_type = data['match_type']
+    if 'status' in data:
+        match.status = data['status']
+    if 'red_score' in data:
+        match.red_score = data['red_score']
+    if 'blue_score' in data:
+        match.blue_score = data['blue_score']
+    
+    # Update teams by team number
+    if 'red_team1' in data and data['red_team1']:
+        team = Team.query.filter_by(number=data['red_team1']).first()
+        match.red_team1_id = team.id if team else None
+    
+    if 'red_team2' in data and data['red_team2']:
+        team = Team.query.filter_by(number=data['red_team2']).first()
+        match.red_team2_id = team.id if team else None
+    
+    if 'blue_team1' in data and data['blue_team1']:
+        team = Team.query.filter_by(number=data['blue_team1']).first()
+        match.blue_team1_id = team.id if team else None
+    
+    if 'blue_team2' in data and data['blue_team2']:
+        team = Team.query.filter_by(number=data['blue_team2']).first()
+        match.blue_team2_id = team.id if team else None
+    
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'message': 'Match updated successfully',
+        'match_id': match.id
+    })
+
+@app.route('/api/admin/matches/all', methods=['DELETE'])
+def admin_delete_all_matches():
+    """Admin endpoint to delete ALL matches and events"""
+    try:
+        # Delete all match events
+        MatchEvent.query.delete()
+        # Delete all matches
+        Match.query.delete()
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'All matches and events deleted'
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/rankings/<team_number>', methods=['PUT'])
+def admin_update_ranking(team_number):
+    """Admin endpoint to update team ranking points"""
+    team = Team.query.filter_by(number=team_number).first()
+    if not team:
+        return jsonify({'error': 'Team not found'}), 404
+    
+    ranking = TeamRanking.query.filter_by(team_id=team.id).first()
+    if not ranking:
+        return jsonify({'error': 'Ranking not found'}), 404
+    
+    data = request.json
+    if 'ranking_points' not in data:
+        return jsonify({'error': 'ranking_points is required'}), 400
+    
+    ranking.ranking_points = data['ranking_points']
+    db.session.commit()
+    
+    # Recalculate all rankings
+    update_rankings()
+    
+    return jsonify({
+        'success': True,
+        'message': 'Ranking updated successfully',
+        'team_number': team_number,
+        'ranking_points': ranking.ranking_points
+    })
+
+@app.route('/api/admin/rankings/reset', methods=['POST'])
+def admin_reset_rankings():
+    """Admin endpoint to reset all rankings to 0"""
+    try:
+        rankings = TeamRanking.query.all()
+        for ranking in rankings:
+            ranking.ranking_points = 0
+            ranking.previous_rank = 0
+            ranking.current_rank = 0
+        
+        db.session.commit()
+        update_rankings()
+        
+        return jsonify({
+            'success': True,
+            'message': 'All rankings reset to 0'
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/events')
+def admin_get_events():
+    """Admin endpoint to get all match events with optional filtering"""
+    match_id = request.args.get('match_id', type=int)
+    
+    query = MatchEvent.query
+    if match_id:
+        query = query.filter_by(match_id=match_id)
+    
+    events = query.order_by(MatchEvent.timestamp.desc()).all()
+    
+    return jsonify([{
+        'id': e.id,
+        'match_id': e.match_id,
+        'alliance': e.alliance,
+        'event_type': e.event_type,
+        'points': e.points,
+        'timestamp': e.timestamp.isoformat() if e.timestamp else None
+    } for e in events])
+
+@app.route('/api/admin/events/<int:event_id>', methods=['DELETE'])
+def admin_delete_event(event_id):
+    """Admin endpoint to delete a match event"""
+    event = db.session.get(MatchEvent, event_id)
+    if not event:
+        return jsonify({'error': 'Event not found'}), 404
+    
+    db.session.delete(event)
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'message': 'Event deleted successfully'
+    })
 
 @socketio.on('connect')
 def handle_connect():
@@ -594,6 +929,10 @@ def handle_fta_start_match(data):
     # Save or get the match first
     match_id = data.get('match_id')
     match_type = data.get('match_type', 'Qualification')  # Get match_type with default
+    quick_start = data.get('quick_start', False)  # Check if this is a quick start
+    
+    # Set initial timer based on quick_start flag
+    initial_time = 15 if quick_start else 135
     
     # Store team numbers for later use
     team_numbers = {
@@ -621,8 +960,8 @@ def handle_fta_start_match(data):
             match_number=match_number,
             status='in_progress',
             start_time=datetime.now(UTC),
-            match_time_remaining=135,
-            is_endgame=False,
+            match_time_remaining=initial_time,
+            is_endgame=(initial_time <= 30),  # Set endgame if quick start
             red_bonus_active=False,
             red_bonus_time_remaining=15,
             blue_bonus_active=False,
@@ -651,8 +990,8 @@ def handle_fta_start_match(data):
             match.match_type = match_type  # Update match_type for existing match
             match.status = 'in_progress'
             match.start_time = datetime.now(UTC)
-            match.match_time_remaining = 135
-            match.is_endgame = False
+            match.match_time_remaining = initial_time
+            match.is_endgame = (initial_time <= 30)  # Set endgame if quick start
             match.red_bonus_active = False
             match.red_bonus_time_remaining = 15
             match.blue_bonus_active = False
@@ -677,6 +1016,19 @@ def handle_fta_start_match(data):
             'red_score': match.red_score,
             'blue_score': match.blue_score
         })
+        
+        # If quick start, immediately send timer update to show endgame indicator
+        if quick_start:
+            socketio.emit('timer_update', {
+                'match_id': match_id,
+                'time_remaining': match.match_time_remaining,
+                'is_endgame': match.is_endgame,
+                'red_bonus_active': match.red_bonus_active,
+                'red_bonus_time': match.red_bonus_time_remaining if match.red_bonus_active else 0,
+                'blue_bonus_active': match.blue_bonus_active,
+                'blue_bonus_time': match.blue_bonus_time_remaining if match.blue_bonus_active else 0,
+                'field_fault': False
+            })
         
         # Update referee panel with new match info
         socketio.emit('match_started', {
@@ -729,6 +1081,12 @@ def handle_fta_show_review(data=None):
 def handle_fta_hide_review(data=None):
     # Hide review banner on live display
     socketio.emit('hide_review')
+
+@socketio.on('review_complete')
+def handle_review_complete(data):
+    """Broadcast that review is complete and showcase can be enabled"""
+    match_id = data.get('match_id')
+    socketio.emit('review_complete', {'match_id': match_id})
 
 @socketio.on('delete_event')
 def handle_delete_event(data):

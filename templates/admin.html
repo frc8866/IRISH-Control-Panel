@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Database Editor</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+</head>
+<body>
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <div class="admin-container">
+        <header class="admin-header">
+            <h1>⚙️ DATABASE ADMIN PANEL</h1>
+            <div class="subtitle">View and Edit All Database Records</div>
+        </header>
+
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="matches">Matches</button>
+            <button class="tab-btn" data-tab="teams">Teams</button>
+            <button class="tab-btn" data-tab="rankings">Rankings</button>
+            <button class="tab-btn" data-tab="events">Match Events</button>
+        </div>
+
+        <!-- Matches Tab -->
+        <div id="matches-tab" class="tab-content active">
+            <div class="section-header">
+                <h2>All Matches</h2>
+                <button class="btn btn-danger" onclick="deleteAllMatches()">Delete All Matches</button>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Match #</th>
+                            <th>Type</th>
+                            <th>Red Alliance</th>
+                            <th>Blue Alliance</th>
+                            <th>Red Score</th>
+                            <th>Blue Score</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="matches-tbody">
+                        <tr><td colspan="9" class="loading">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Teams Tab -->
+        <div id="teams-tab" class="tab-content">
+            <div class="section-header">
+                <h2>All Teams</h2>
+                <button class="btn btn-success" onclick="showAddTeamModal()">Add New Team</button>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Team Number</th>
+                            <th>Team Name</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="teams-tbody">
+                        <tr><td colspan="4" class="loading">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Rankings Tab -->
+        <div id="rankings-tab" class="tab-content">
+            <div class="section-header">
+                <h2>Team Rankings</h2>
+                <button class="btn btn-warning" onclick="resetAllRankings()">Reset All Rankings</button>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Team Number</th>
+                            <th>Team Name</th>
+                            <th>Ranking Points</th>
+                            <th>Previous Rank</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rankings-tbody">
+                        <tr><td colspan="6" class="loading">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Events Tab -->
+        <div id="events-tab" class="tab-content">
+            <div class="section-header">
+                <h2>Match Events (Scoring History)</h2>
+                <div class="filter-group">
+                    <label>Filter by Match ID:</label>
+                    <input type="number" id="event-filter-match" placeholder="All matches" onchange="loadMatchEvents()">
+                </div>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Match ID</th>
+                            <th>Alliance</th>
+                            <th>Event Type</th>
+                            <th>Points</th>
+                            <th>Timestamp</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="events-tbody">
+                        <tr><td colspan="7" class="loading">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Match Modal -->
+    <div id="edit-match-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Edit Match</h2>
+                <button class="close-btn" onclick="closeModal('edit-match-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="edit-match-id">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Match Number:</label>
+                        <input type="number" id="edit-match-number" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Match Type:</label>
+                        <select id="edit-match-type">
+                            <option value="qualification">Qualification</option>
+                            <option value="playoff">Playoff</option>
+                            <option value="final">Final</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Red Team 1:</label>
+                        <input type="number" id="edit-red-team1" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Red Team 2:</label>
+                        <input type="number" id="edit-red-team2" min="1">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Blue Team 1:</label>
+                        <input type="number" id="edit-blue-team1" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Blue Team 2:</label>
+                        <input type="number" id="edit-blue-team2" min="1">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Red Score:</label>
+                        <input type="number" id="edit-red-score" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Blue Score:</label>
+                        <input type="number" id="edit-blue-score" min="0">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Status:</label>
+                        <select id="edit-match-status">
+                            <option value="scheduled">Scheduled</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="completed">Completed</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('edit-match-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveMatch()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Ranking Modal -->
+    <div id="edit-ranking-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Edit Ranking</h2>
+                <button class="close-btn" onclick="closeModal('edit-ranking-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="edit-ranking-id">
+                <div class="form-group">
+                    <label>Team:</label>
+                    <input type="text" id="edit-ranking-team" disabled>
+                </div>
+                <div class="form-group">
+                    <label>Ranking Points:</label>
+                    <input type="number" id="edit-ranking-points" min="0">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('edit-ranking-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveRanking()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+</body>
+</html>

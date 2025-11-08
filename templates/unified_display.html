@@ -43,9 +43,11 @@
                 <h2>RED ALLIANCE</h2>
                 <div class="team-box">
                     <span class="team-number" id="prematch-red-team1">????</span>
+                    <span class="team-rank" id="prematch-red-team1-rank"></span>
                 </div>
                 <div class="team-box">
                     <span class="team-number" id="prematch-red-team2">????</span>
+                    <span class="team-rank" id="prematch-red-team2-rank"></span>
                 </div>
             </div>
 
@@ -57,9 +59,11 @@
                 <h2>BLUE ALLIANCE</h2>
                 <div class="team-box">
                     <span class="team-number" id="prematch-blue-team1">????</span>
+                    <span class="team-rank" id="prematch-blue-team1-rank"></span>
                 </div>
                 <div class="team-box">
                     <span class="team-number" id="prematch-blue-team2">????</span>
+                    <span class="team-rank" id="prematch-blue-team2-rank"></span>
                 </div>
             </div>
         </div>
@@ -117,7 +121,11 @@
                 <div class="alliance-score-box red-box">
                     <div class="alliance-label">Red</div>
                     <div class="alliance-teams">
-                        <span id="postmatch-red-team1">????</span> / <span id="postmatch-red-team2">????</span>
+                        <span id="postmatch-red-team1">????</span>
+                        <span class="team-rank" id="postmatch-red-team1-rank"></span>
+                        / 
+                        <span id="postmatch-red-team2">????</span>
+                        <span class="team-rank" id="postmatch-red-team2-rank"></span>
                     </div>
                     <div class="alliance-final-score" id="postmatch-red-score">0</div>
                 </div>
@@ -125,7 +133,11 @@
                 <div class="alliance-score-box blue-box">
                     <div class="alliance-label">Blue</div>
                     <div class="alliance-teams">
-                        <span id="postmatch-blue-team1">????</span> / <span id="postmatch-blue-team2">????</span>
+                        <span id="postmatch-blue-team1">????</span>
+                        <span class="team-rank" id="postmatch-blue-team1-rank"></span>
+                        / 
+                        <span id="postmatch-blue-team2">????</span>
+                        <span class="team-rank" id="postmatch-blue-team2-rank"></span>
                     </div>
                     <div class="alliance-final-score" id="postmatch-blue-score">0</div>
                 </div>
@@ -185,6 +197,77 @@
     <script>
         const socket = io();
         let currentScreen = 'prematch';
+        let teamRankings = {};  // Cache for team rankings
+
+        // Fetch team rankings from API
+        async function fetchTeamRankings() {
+            try {
+                const response = await fetch('/api/rankings');
+                const rankings = await response.json();
+                
+                // Build a lookup map for quick access
+                teamRankings = {};
+                rankings.forEach(ranking => {
+                    teamRankings[ranking.team_number] = {
+                        rank: ranking.rank,
+                        rank_change: ranking.rank_change,
+                        ranking_points: ranking.ranking_points
+                    };
+                });
+            } catch (error) {
+                console.error('Error fetching rankings:', error);
+            }
+        }
+
+        // Format rank display with or without arrow
+        function formatRankDisplay(teamNumber, showArrow = true) {
+            if (!teamNumber || teamNumber === '????' || !teamRankings[teamNumber]) {
+                return '';
+            }
+            
+            const rankData = teamRankings[teamNumber];
+            
+            if (!showArrow) {
+                // Just show rank number without arrow
+                return `<span class="rank-number">#${rankData.rank}</span>`;
+            }
+            
+            const arrow = rankData.rank_change;
+            let arrowClass = 'same';
+            
+            if (arrow === '↑') {
+                arrowClass = 'up';
+            } else if (arrow === '↓') {
+                arrowClass = 'down';
+            }
+            
+            return `<span class="rank-number">#${rankData.rank}</span> <span class="rank-arrow ${arrowClass}">${arrow}</span>`;
+        }
+
+        // Update rank displays for all teams
+        function updateRankDisplays() {
+            // Pre-match ranks (no arrows, just current rank)
+            const prematchTeams = ['red-team1', 'red-team2', 'blue-team1', 'blue-team2'];
+            prematchTeams.forEach(teamId => {
+                const teamNumberElement = document.getElementById(`prematch-${teamId}`);
+                const rankElement = document.getElementById(`prematch-${teamId}-rank`);
+                if (teamNumberElement && rankElement) {
+                    const teamNumber = parseInt(teamNumberElement.textContent);
+                    rankElement.innerHTML = formatRankDisplay(teamNumber, false);  // No arrows on prematch
+                }
+            });
+
+            // Post-match ranks (with arrows)
+            const postmatchTeams = ['red-team1', 'red-team2', 'blue-team1', 'blue-team2'];
+            postmatchTeams.forEach(teamId => {
+                const teamNumberElement = document.getElementById(`postmatch-${teamId}`);
+                const rankElement = document.getElementById(`postmatch-${teamId}-rank`);
+                if (teamNumberElement && rankElement) {
+                    const teamNumber = parseInt(teamNumberElement.textContent);
+                    rankElement.innerHTML = formatRankDisplay(teamNumber, true);  // Show arrows on postmatch
+                }
+            });
+        }
 
         // Screen transition function
         function showScreen(screenName) {
@@ -217,6 +300,9 @@
             document.getElementById('prematch-red-team2').textContent = data.red_team2 || '????';
             document.getElementById('prematch-blue-team1').textContent = data.blue_team1 || '????';
             document.getElementById('prematch-blue-team2').textContent = data.blue_team2 || '????';
+            
+            // Fetch latest rankings and update displays
+            fetchTeamRankings().then(() => updateRankDisplays());
         }
 
         // Update live match data
@@ -281,6 +367,9 @@
                 winnerBanner.textContent = 'MATCH TIED!';
                 winnerBanner.className = 'winner-banner tie';
             }
+            
+            // Fetch latest rankings and update displays
+            fetchTeamRankings().then(() => updateRankDisplays());
         }
 
         // Socket event listeners
@@ -324,6 +413,11 @@
             } else if (currentScreen === 'postmatch') {
                 updatePostmatchData(data);
             }
+        });
+
+        socket.on('rankings_updated', () => {
+            // Refresh rankings when they change
+            fetchTeamRankings().then(() => updateRankDisplays());
         });
 
         socket.on('score_updated', (data) => {
@@ -422,6 +516,9 @@
                 updatePrematchData(data);
                 updateLiveData(data);
             });
+        
+        // Initial rankings load
+        fetchTeamRankings();
     </script>
 </body>
 </html>

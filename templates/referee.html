@@ -485,6 +485,8 @@
         document.getElementById('apply-review-btn').addEventListener('click', () => {
             exitReviewMode();
             socket.emit('fta_hide_review');
+            // Notify that review is complete and showcase can be enabled
+            socket.emit('review_complete', { match_id: currentMatchId });
         });
 
         // Listen for event deletions

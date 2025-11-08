@@ -1,0 +1,290 @@
+/* Rankings Page Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Arial', sans-serif;
+    background: #000;
+    color: #fff;
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+.rankings-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+
+/* Rankings Table */
+.rankings-table-container {
+    /* Styles moved to inline <style> tag */
+    margin-bottom: 20px;
+}
+
+.rankings-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0; /* Remove spacing for smooth scrolling */
+}
+
+.rankings-table thead th {
+    background: linear-gradient(to right, #1a1a1a, #2a2a2a);
+    padding: 20px;
+    text-align: left;
+    font-size: 1.1em;
+    font-weight: bold;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 3px solid #fff;
+}
+
+.rankings-table thead th:first-child {
+    border-top-left-radius: 10px;
+}
+
+.rankings-table thead th:last-child {
+    border-top-right-radius: 10px;
+}
+
+.rank-col {
+    width: 15%;
+}
+
+.team-col {
+    width: 40%;
+}
+
+.rp-col {
+    width: 25%;
+}
+
+.change-col {
+    width: 20%;
+    text-align: center !important;
+}
+
+.ranking-row {
+    background: rgba(255, 255, 255, 0.05);
+    transition: all 0.5s ease;
+    animation: slideIn 0.5s ease;
+    height: 90px; /* Fixed height for consistent scrolling */
+    margin-bottom: 0; /* No extra margin */
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.ranking-row:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateX(5px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.ranking-row td {
+    padding: 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    vertical-align: middle; /* Center content vertically */
+}
+
+.ranking-row:first-child td:first-child {
+    border-top-left-radius: 10px;
+}
+
+.ranking-row:first-child td:last-child {
+    border-top-right-radius: 10px;
+}
+
+/* Podium Highlights */
+.first-place {
+    background: rgba(255, 215, 0, 0.05) !important;
+    border-left: 5px solid #ffd700;
+}
+
+.second-place {
+    background: rgba(192, 192, 192, 0.05) !important;
+    border-left: 5px solid #c0c0c0;
+}
+
+.third-place {
+    background: rgba(205, 127, 50, 0.05) !important;
+    border-left: 5px solid #cd7f32;
+}
+
+/* Rank Badge */
+.rank-badge {
+    display: inline-block;
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+    font-size: 1.5em;
+    font-weight: bold;
+    padding: 10px 20px;
+    border-radius: 10px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.first-place .rank-badge {
+    background: rgba(255, 215, 0, 0.2);
+    border-color: #ffd700;
+    color: #ffd700;
+}
+
+.second-place .rank-badge {
+    background: rgba(192, 192, 192, 0.2);
+    border-color: #c0c0c0;
+    color: #c0c0c0;
+}
+
+.third-place .rank-badge {
+    background: rgba(205, 127, 50, 0.2);
+    border-color: #cd7f32;
+    color: #cd7f32;
+}
+
+@keyframes glow-gold {
+    0%, 100% {
+        box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+    }
+    50% {
+        box-shadow: 0 0 40px rgba(255, 215, 0, 0.9);
+    }
+}
+
+/* Team Info */
+.team-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.team-number {
+    font-size: 2em;
+    font-weight: bold;
+    color: #fff;
+}
+
+.team-name {
+    font-size: 1.1em;
+    color: #aaa;
+}
+
+/* Ranking Points */
+.rp-value {
+    font-size: 1.8em;
+    font-weight: bold;
+    color: #4caf50;
+}
+
+/* Arrows */
+.arrow {
+    font-size: 2em;
+    font-weight: bold;
+    display: inline-block;
+    padding: 5px 15px;
+    border-radius: 8px;
+}
+
+.arrow.up {
+    color: #4caf50;
+    background: rgba(76, 175, 80, 0.2);
+}
+
+.arrow.down {
+    color: #f44336;
+    background: rgba(244, 67, 54, 0.2);
+}
+
+.arrow.same {
+    color: #aaa;
+    background: rgba(170, 170, 170, 0.2);
+}
+
+/* Footer */
+.rankings-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 15px;
+    backdrop-filter: blur(10px);
+}
+
+.legend {
+    display: flex;
+    gap: 30px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.1em;
+}
+
+.legend-item .arrow {
+    font-size: 1.5em;
+    padding: 5px 10px;
+}
+
+.last-updated {
+    color: #aaa;
+    font-size: 1em;
+}
+
+#last-updated-time {
+    color: #ffd700;
+    font-weight: bold;
+}
+
+/* Loading/Error States */
+.loading, .no-data, .error {
+    text-align: center;
+    padding: 40px;
+    font-size: 1.3em;
+    color: #aaa;
+}
+
+.error {
+    color: #f44336;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .rankings-header h1 {
+        font-size: 2em;
+    }
+    
+    .team-info {
+        flex-direction: column;
+        gap: 5px;
+        align-items: flex-start;
+    }
+    
+    .team-number {
+        font-size: 1.5em;
+    }
+    
+    .rankings-footer {
+        flex-direction: column;
+        gap: 20px;
+    }
+    
+    .legend {
+        flex-direction: column;
+        gap: 10px;
+    }
+}

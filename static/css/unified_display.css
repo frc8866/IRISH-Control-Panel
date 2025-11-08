@@ -109,6 +109,38 @@ header {
     font-weight: bold;
 }
 
+.team-rank {
+    display: inline-block;
+    font-size: 1.5em;
+    margin-left: 15px;
+    padding: 5px 15px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    color: #ffd93d;
+    font-weight: 600;
+}
+
+.team-rank .rank-number {
+    color: #ffffff;
+}
+
+.team-rank .rank-arrow {
+    margin-left: 5px;
+    font-weight: bold;
+}
+
+.team-rank .rank-arrow.up {
+    color: #4caf50;
+}
+
+.team-rank .rank-arrow.down {
+    color: #f44336;
+}
+
+.team-rank .rank-arrow.same {
+    color: #aaaaaa;
+}
+
 .vs-section {
     text-align: center;
 }
@@ -282,6 +314,16 @@ header {
 .alliance-teams {
     font-size: 1.3em;
     margin-bottom: 15px;
+    font-weight: 600;
+}
+
+.alliance-teams .team-rank {
+    font-size: 0.8em;
+    margin-left: 8px;
+    padding: 3px 10px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 5px;
+    color: #ffd93d;
     font-weight: 600;
 }
 

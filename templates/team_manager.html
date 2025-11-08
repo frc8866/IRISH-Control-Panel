@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Team Manager - IRISH</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/team_manager.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+</head>
+<body>
+    <!-- Toast Notification Container -->   
+    <div id="toast-container" class="toast-container"></div>
+
+    <div class="team-manager-container">
+        <header class="manager-header">
+            <h1>🎯 TEAM MANAGER</h1>
+            <div class="subtitle">Manage Team Numbers and Names</div>
+        </header>
+
+        <div class="manager-content">
+            <div class="add-team-section">
+                <h2>Add New Team</h2>
+                <div class="add-team-form">
+                    <div class="form-group">
+                        <label for="new-team-number">Team Number:</label>
+                        <input type="number" id="new-team-number" min="1" placeholder="e.g., 8866">
+                    </div>
+                    <div class="form-group">
+                        <label for="new-team-name">Team Name:</label>
+                        <input type="text" id="new-team-name" placeholder="e.g., IRISH Robotics">
+                    </div>
+                    <button id="add-team-btn" class="btn btn-success">Add Team</button>
+                </div>
+            </div>
+
+            <div class="teams-list-section">
+                <h2>Existing Teams</h2>
+                <div class="teams-grid" id="teams-grid">
+                    <p class="loading">Loading teams...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+
+        // Toast notification system
+        function showToast(message, type = 'info', duration = 3000) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            
+            container.appendChild(toast);
+            
+            setTimeout(() => toast.classList.add('show'), 10);
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => container.removeChild(toast), 300);
+            }, duration);
+        }
+
+        // Load all teams
+        async function loadTeams() {
+            try {
+                const response = await fetch('/api/teams');
+                const teams = await response.json();
+                
+                const grid = document.getElementById('teams-grid');
+                
+                if (teams.length === 0) {
+                    grid.innerHTML = '<p class="no-data">No teams yet. Add your first team above!</p>';
+                    return;
+                }
+                
+                grid.innerHTML = '';
+                
+                teams.forEach(team => {
+                    const card = createTeamCard(team);
+                    grid.appendChild(card);
+                });
+                
+            } catch (error) {
+                console.error('Error loading teams:', error);
+                showToast('Error loading teams', 'error');
+            }
+        }
+
+        // Create a team card
+        function createTeamCard(team) {
+            const card = document.createElement('div');
+            card.className = 'team-card';
+            card.innerHTML = `
+                <div class="team-card-header">
+                    <span class="team-number-display">#${team.number}</span>
+                    <button class="delete-btn" onclick="deleteTeam(${team.id}, '${team.number}')">✕</button>
+                </div>
+                <div class="team-card-body">
+                    <input type="text" 
+                           class="team-name-input" 
+                           value="${team.name}" 
+                           data-team-id="${team.id}"
+                           placeholder="Team Name">
+                    <button class="save-btn" onclick="updateTeamName(${team.id})">Save</button>
+                </div>
+            `;
+            return card;
+        }
+
+        // Add new team
+        document.getElementById('add-team-btn').addEventListener('click', async () => {
+            const number = document.getElementById('new-team-number').value;
+            const name = document.getElementById('new-team-name').value;
+            
+            if (!number || number < 1) {
+                showToast('Please enter a valid team number', 'error');
+                return;
+            }
+            
+            if (!name || name.trim() === '') {
+                showToast('Please enter a team name', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/teams', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        number: parseInt(number),
+                        name: name.trim()
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showToast('Team added successfully!', 'success');
+                    document.getElementById('new-team-number').value = '';
+                    document.getElementById('new-team-name').value = '';
+                    loadTeams();
+                } else {
+                    showToast(result.error || 'Error adding team', 'error');
+                }
+                
+            } catch (error) {
+                console.error('Error adding team:', error);
+                showToast('Error adding team', 'error');
+            }
+        });
+
+        // Update team name
+        async function updateTeamName(teamId) {
+            const input = document.querySelector(`input[data-team-id="${teamId}"]`);
+            const newName = input.value.trim();
+            
+            if (!newName) {
+                showToast('Team name cannot be empty', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/teams/${teamId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: newName })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showToast('Team name updated!', 'success');
+                    loadTeams();
+                } else {
+                    showToast(result.error || 'Error updating team', 'error');
+                }
+                
+            } catch (error) {
+                console.error('Error updating team:', error);
+                showToast('Error updating team', 'error');
+            }
+        }
+
+        // Delete team
+        async function deleteTeam(teamId, teamNumber) {
+            if (!confirm(`Are you sure you want to delete Team ${teamNumber}? This cannot be undone.`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/teams/${teamId}`, {
+                    method: 'DELETE'
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showToast('Team deleted successfully', 'success');
+                    loadTeams();
+                } else {
+                    showToast(result.error || 'Error deleting team', 'error');
+                }
+                
+            } catch (error) {
+                console.error('Error deleting team:', error);
+                showToast('Error deleting team', 'error');
+            }
+        }
+
+        // Initial load
+        loadTeams();
+    </script>
+</body>
+</html>

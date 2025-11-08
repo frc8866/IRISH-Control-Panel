@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Rankings - IRISH</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/rankings.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+    <style>
+        .rankings-table-container {
+            overflow: hidden;
+            position: relative;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+        }
+        
+        .rankings-table {
+            display: block;
+            width: 100%;
+        }
+        
+        .rankings-table thead {
+            display: block;
+            width: 100%;
+            position: relative;
+            z-index: 10;
+            background: linear-gradient(135deg, #0f3460, #16213e);
+        }
+        
+        .rankings-table thead tr {
+            display: table;
+            width: 100%;
+            table-layout: fixed;
+        }
+        
+        /* Mask layer to hide scrolling content behind header */
+        .rankings-table-container::before {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            height: 73px; /* Height of the header */
+            background: linear-gradient(135deg, #0f3460, #16213e);
+            z-index: 5;
+            pointer-events: none;
+        }
+        
+        .rankings-tbody-container {
+            display: block;
+            height: 810px; /* Exactly 9 rows at 90px each */
+            max-height: 810px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .rankings-table tbody {
+            display: block;
+            width: 100%;
+            transition: transform 0.8s ease-in-out;
+        }
+        
+        .rankings-table tbody tr {
+            display: table;
+            width: 100%;
+            table-layout: fixed;
+        }
+    </style>
+</head>
+<body>
+
+        <div class="rankings-table-container">
+            <table class="rankings-table">
+                <thead>
+                    <tr>
+                        <th class="rank-col">RANK</th>
+                        <th class="team-col">TEAM</th>
+                        <th class="rp-col">RANKING POINTS</th>
+                        <th class="change-col">TREND</th>
+                    </tr>
+                </thead>
+            </table>
+            <div class="rankings-tbody-container">
+                <table class="rankings-table">
+                    <tbody id="rankings-body">
+                        <!-- Rankings will be populated here -->
+                        <tr>
+                            <td colspan="4" class="loading">Loading rankings...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="rankings-footer">
+            <div class="legend">
+                <div class="legend-item">
+                    <span class="arrow up">↑</span> Moved Up
+                </div>
+                <div class="legend-item">
+                    <span class="arrow down">↓</span> Moved Down
+                </div>
+                <div class="legend-item">
+                    <span class="arrow same">—</span> No Change
+                </div>
+            </div>
+            <div class="last-updated">
+                Last Updated: <span id="last-updated-time">Never</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        let allRankings = [];
+        let currentScrollIndex = 0;
+        const MAX_VISIBLE = 9;
+        let scrollInterval = null;
+        const ROW_HEIGHT = 90; // Match the CSS row height
+
+        // Fetch and display rankings
+        async function updateRankings() {
+            try {
+                const response = await fetch('/api/rankings');
+                const rankings = await response.json();
+                
+                allRankings = rankings;
+                
+                const tbody = document.getElementById('rankings-body');
+                
+                if (rankings.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="no-data">No ranking data available yet</td></tr>';
+                    stopAutoScroll();
+                    return;
+                }
+                
+                // Load ALL rankings into the DOM
+                displayAllRankings(rankings);
+                
+                // If more than 9 teams, start auto-scrolling
+                if (rankings.length > MAX_VISIBLE) {
+                    currentScrollIndex = 0;
+                    tbody.style.transform = 'translateY(0)';
+                    startAutoScroll();
+                } else {
+                    stopAutoScroll();
+                    tbody.style.transform = 'translateY(0)';
+                }
+                
+                // Update timestamp
+                const now = new Date();
+                document.getElementById('last-updated-time').textContent = now.toLocaleTimeString();
+                
+            } catch (error) {
+                console.error('Error fetching rankings:', error);
+                document.getElementById('rankings-body').innerHTML = 
+                    '<tr><td colspan="4" class="error">Error loading rankings</td></tr>';
+            }
+        }
+
+        // Display all rankings - loads every team into DOM
+        function displayAllRankings(rankings) {
+            const tbody = document.getElementById('rankings-body');
+            tbody.innerHTML = '';
+            
+            // Add ALL teams to the DOM
+            rankings.forEach((ranking) => {
+                tbody.appendChild(createRankingRow(ranking));
+            });
+            
+            console.log(`Loaded ${rankings.length} teams into rankings table`);
+        }
+
+        // Create a ranking row element
+        function createRankingRow(ranking) {
+            const row = document.createElement('tr');
+            row.className = 'ranking-row';
+            
+            // Add highlight for top 3
+            if (ranking.rank === 1) row.classList.add('first-place');
+            else if (ranking.rank === 2) row.classList.add('second-place');
+            else if (ranking.rank === 3) row.classList.add('third-place');
+            
+            // Rank column
+            const rankCell = document.createElement('td');
+            rankCell.className = 'rank-cell';
+            rankCell.innerHTML = `<span class="rank-badge">#${ranking.rank}</span>`;
+            
+            // Team column
+            const teamCell = document.createElement('td');
+            teamCell.className = 'team-cell';
+            teamCell.innerHTML = `
+                <div class="team-info">
+                    <span class="team-number">${ranking.team_number}</span>
+                    <span class="team-name">${ranking.team_name}</span>
+                </div>
+            `;
+            
+            // Ranking points column
+            const rpCell = document.createElement('td');
+            rpCell.className = 'rp-cell';
+            rpCell.innerHTML = `<span class="rp-value">${ranking.ranking_points}</span>`;
+            
+            // Change column
+            const changeCell = document.createElement('td');
+            changeCell.className = 'change-cell';
+            let arrowClass = 'same';
+            if (ranking.rank_change === '↑') arrowClass = 'up';
+            else if (ranking.rank_change === '↓') arrowClass = 'down';
+            changeCell.innerHTML = `<span class="arrow ${arrowClass}">${ranking.rank_change}</span>`;
+            
+            row.appendChild(rankCell);
+            row.appendChild(teamCell);
+            row.appendChild(rpCell);
+            row.appendChild(changeCell);
+            
+            return row;
+        }
+
+        // Start smooth auto-scrolling through rankings
+        function startAutoScroll() {
+            if (scrollInterval) return; // Already scrolling
+            
+            scrollInterval = setInterval(() => {
+                const maxScroll = allRankings.length - MAX_VISIBLE;
+                
+                // If we're at or past the last page, pause and reset
+                if (currentScrollIndex >= maxScroll) {
+                    // Show the final window
+                    const tbody = document.getElementById('rankings-body');
+                    const translateY = -maxScroll * ROW_HEIGHT;
+                    tbody.style.transform = `translateY(${translateY}px)`;
+                    
+                    // Pause for 3 seconds at the bottom
+                    clearInterval(scrollInterval);
+                    scrollInterval = null;
+                    
+                    setTimeout(() => {
+                        currentScrollIndex = 0;
+                        tbody.style.transition = 'none'; // Instant reset
+                        tbody.style.transform = 'translateY(0)';
+                        
+                        // Re-enable transition after reset
+                        setTimeout(() => {
+                            tbody.style.transition = 'transform 0.8s ease-in-out';
+                            startAutoScroll(); // Resume scrolling
+                        }, 50);
+                    }, 3000);
+                } else {
+                    // Smooth scroll by translating the tbody
+                    currentScrollIndex++;
+                    const tbody = document.getElementById('rankings-body');
+                    const translateY = -currentScrollIndex * ROW_HEIGHT;
+                    tbody.style.transform = `translateY(${translateY}px)`;
+                }
+            }, 2000); // Scroll every 2 seconds
+        }
+
+        // Stop auto-scrolling
+        function stopAutoScroll() {
+            if (scrollInterval) {
+                clearInterval(scrollInterval);
+                scrollInterval = null;
+            }
+            currentScrollIndex = 0;
+        }
+
+        // Listen for ranking updates
+        socket.on('rankings_updated', () => {
+            console.log('Rankings updated, refreshing...');
+            stopAutoScroll();
+            updateRankings();
+        });
+
+        // Initial load
+        updateRankings();
+
+        // Auto-refresh every 30 seconds as backup
+        setInterval(() => {
+            stopAutoScroll();
+            updateRankings();
+        }, 30000);
+    </script>
+</body>
+</html>
