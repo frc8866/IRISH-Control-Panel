@@ -205,6 +205,7 @@ header {
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    position: relative;
 }
 
 .time {
@@ -256,6 +257,7 @@ header {
     animation: pulse 1s infinite;
     width: auto;
     white-space: nowrap;
+    position: absolute;
 }
 
 @keyframes pulse {

@@ -226,6 +226,55 @@
         </div>
     </div>
 
+    <!-- Add Team Modal -->
+    <div id="add-team-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add New Team</h2>
+                <button class="close-btn" onclick="closeModal('add-team-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Team Number:</label>
+                    <input type="number" id="add-team-number" min="1" placeholder="e.g., 8866">
+                </div>
+                <div class="form-group">
+                    <label>Team Name:</label>
+                    <input type="text" id="add-team-name" placeholder="e.g., IRISH Robotics">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('add-team-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveNewTeam()">Add Team</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Team Modal -->
+    <div id="edit-team-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Edit Team</h2>
+                <button class="close-btn" onclick="closeModal('edit-team-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="edit-team-id">
+                <div class="form-group">
+                    <label>Team Number:</label>
+                    <input type="number" id="edit-team-number" disabled>
+                </div>
+                <div class="form-group">
+                    <label>Team Name:</label>
+                    <input type="text" id="edit-team-name" placeholder="Team Name">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('edit-team-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveTeam()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
     <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
 </body>
 </html>

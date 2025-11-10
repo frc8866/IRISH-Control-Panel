@@ -271,8 +271,14 @@
 
             fetchNextMatchNumber();
             
+            readyDisplay();
+
             showToast('New match form ready', 'success');
             console.log('New match form cleared and ready');
+        }
+
+        function readyDisplay() {
+            socket.emit('fta_ready_display');
         }
 
         // Save match data

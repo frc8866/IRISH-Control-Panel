@@ -236,6 +236,7 @@ async function loadTeams() {
                 <td><span class="badge badge-blue">${team.number}</span></td>
                 <td>${team.name}</td>
                 <td class="action-buttons">
+                    <button class="btn btn-primary btn-sm" onclick="editTeam(${team.id})">Edit</button>
                     <button class="btn btn-danger btn-sm" onclick="deleteTeam(${team.id}, '${team.number}')">Delete</button>
                 </td>
             `;
@@ -244,6 +245,104 @@ async function loadTeams() {
     } catch (error) {
         console.error('Error loading teams:', error);
         showToast('Error loading teams', 'error');
+    }
+}
+
+function showAddTeamModal() {
+    document.getElementById('add-team-number').value = '';
+    document.getElementById('add-team-name').value = '';
+    openModal('add-team-modal');
+}
+
+async function saveNewTeam() {
+    const number = document.getElementById('add-team-number').value;
+    const name = document.getElementById('add-team-name').value;
+    
+    if (!number || number < 1) {
+        showToast('Please enter a valid team number', 'error');
+        return;
+    }
+    
+    if (!name || name.trim() === '') {
+        showToast('Please enter a team name', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/teams', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                number: parseInt(number),
+                name: name.trim()
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showToast('Team added successfully!', 'success');
+            closeModal('add-team-modal');
+            loadTeams();
+        } else {
+            showToast(result.error || 'Error adding team', 'error');
+        }
+    } catch (error) {
+        console.error('Error adding team:', error);
+        showToast('Error adding team', 'error');
+    }
+}
+
+async function editTeam(teamId) {
+    try {
+        const response = await fetch('/api/teams');
+        const teams = await response.json();
+        const team = teams.find(t => t.id === teamId);
+        
+        if (!team) {
+            showToast('Team not found', 'error');
+            return;
+        }
+        
+        document.getElementById('edit-team-id').value = team.id;
+        document.getElementById('edit-team-number').value = team.number;
+        document.getElementById('edit-team-name').value = team.name;
+        
+        openModal('edit-team-modal');
+    } catch (error) {
+        console.error('Error loading team:', error);
+        showToast('Error loading team', 'error');
+    }
+}
+
+async function saveTeam() {
+    const teamId = document.getElementById('edit-team-id').value;
+    const newName = document.getElementById('edit-team-name').value.trim();
+    
+    if (!newName) {
+        showToast('Team name cannot be empty', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/teams/${teamId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: newName })
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showToast('Team updated successfully!', 'success');
+            closeModal('edit-team-modal');
+            loadTeams();
+        } else {
+            showToast(result.error || 'Error updating team', 'error');
+        }
+    } catch (error) {
+        console.error('Error updating team:', error);
+        showToast('Error updating team', 'error');
     }
 }
 

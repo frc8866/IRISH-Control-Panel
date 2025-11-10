@@ -180,24 +180,6 @@ def get_rank_change_indicator(ranking):
     else:
         return '—'  # Dash for no change
 
-# Sample data initialization
-def init_sample_data():
-    with app.app_context():
-        if Team.query.count() == 0:
-            # Add sample teams
-            teams = [
-                Team(number=8866, name='IRISH'),
-                Team(number=1234, name='Team A'),
-                Team(number=5678, name='Team B'),
-                Team(number=9012, name='Team C'),
-                Team(number=3456, name='Team D'),
-            ]
-            db.session.add_all(teams)
-            db.session.commit()
-
-            # No sample match - FTA will start with empty fields
-
-init_sample_data()
 
 @app.route('/')
 def index():
@@ -215,10 +197,6 @@ def referee():
 @app.route('/rankings')
 def rankings():
     return render_template('rankings.html')
-
-@app.route('/teams')
-def team_manager():
-    return render_template('team_manager.html')
 
 @app.route('/admin')
 def admin_panel():
@@ -909,6 +887,11 @@ def handle_fta_save_match(data):
     db.session.commit()
 
     emit('match_data_saved', {'match_id': match.id})
+
+@socketio.on('fta_ready_display')
+def handle_fta_ready_display():
+    # Update display to show "Ready for Match" screen
+    socketio.emit('show_ready_for_match')
 
 @socketio.on('fta_update_display')
 def handle_fta_update_display(data):

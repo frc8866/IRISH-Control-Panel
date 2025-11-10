@@ -305,6 +305,24 @@
             fetchTeamRankings().then(() => updateRankDisplays());
         }
 
+        function clearPrematchData() {
+            document.getElementById('prematch-match-type').textContent = 'Ready for ';
+            document.getElementById('prematch-match-num').textContent = '';
+            document.getElementById('prematch-red-team1').textContent = '????';
+            document.getElementById('prematch-red-team2').textContent = '????';
+            document.getElementById('prematch-blue-team1').textContent = '????';
+            document.getElementById('prematch-blue-team2').textContent = '????';
+            
+            // Clear rank displays
+            const prematchTeams = ['red-team1', 'red-team2', 'blue-team1', 'blue-team2'];
+            prematchTeams.forEach(teamId => {
+                const rankElement = document.getElementById(`prematch-${teamId}-rank`);
+                if (rankElement) {
+                    rankElement.innerHTML = '';
+                }
+            });
+        }
+
         // Update live match data
         function updateLiveData(data) {
             document.getElementById('live-match-type').textContent = formatMatchType(data.match_type);
@@ -375,6 +393,11 @@
         // Socket event listeners
         socket.on('show_prematch', (data) => {
             updatePrematchData(data);
+            showScreen('prematch');
+        });
+
+        socket.on('show_ready_for_match', () => {
+            clearPrematchData();
             showScreen('prematch');
         });
 
