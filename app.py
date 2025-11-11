@@ -1065,6 +1065,31 @@ def handle_fta_hide_review(data=None):
     # Hide review banner on live display
     socketio.emit('hide_review')
 
+@socketio.on('fta_show_postmatch')
+def handle_fta_show_postmatch(data):
+    # Incase of incidental reload, Show postmatch screen of loaded match when provided a match id
+    match_id = data.get('match_id')
+    match = db.session.get(Match, match_id)
+    if match:
+        socketio.emit('show_postmatch', {
+            'match_type': match.match_type,
+            'match_number': match.match_number,
+            'red_team1': match.red_team1.number if match.red_team1 else '????',
+            'red_team2': match.red_team2.number if match.red_team2 else '????',
+            'blue_team1': match.blue_team1.number if match.blue_team1 else '????',
+            'blue_team2': match.blue_team2.number if match.blue_team2 else '????',
+            'red_score': match.red_score,
+            'blue_score': match.blue_score,
+            'red_teleop_rp': match.red_teleop_rp,
+            'red_climb_rp': match.red_climb_rp,
+            'red_win_rp': match.red_win_rp,
+            'blue_teleop_rp': match.blue_teleop_rp,
+            'blue_climb_rp': match.blue_climb_rp,
+            'blue_win_rp': match.blue_win_rp
+        })
+    else:
+        print(f"Match ID {match_id} not found for postmatch display.")
+
 @socketio.on('review_complete')
 def handle_review_complete(data):
     """Broadcast that review is complete and showcase can be enabled"""

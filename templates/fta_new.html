@@ -63,6 +63,7 @@
                 <div class="control-section">
                     <button id="new-match-btn" class="btn btn-warning">New Match</button>
                     <button id="update-display-btn" class="btn btn-primary">Update Display</button>
+                    <button id="show-postmatch-btn" class="btn btn-secondary">Show Post-Match</button>
                 </div>
             </div>
 
@@ -87,7 +88,7 @@
                 <div class="control-section">
                     <button id="start-match-btn" class="btn btn-success btn-large" disabled>START MATCH</button>
                     <button id="quick-start-btn" class="btn btn-warning btn-large" disabled>QUICK START (15s)</button>
-                    <button id="stop-match-btn" class="btn btn-danger btn-large">STOP MATCH</button>
+                    <button id="stop-match-btn" class="btn btn-danger btn-large">ABORT MATCH</button>
                 </div>
             </div>
             
@@ -200,6 +201,7 @@
             const startBtn = document.getElementById('start-match-btn');
             const quickStartBtn = document.getElementById('quick-start-btn');
             const stopBtn = document.getElementById('stop-match-btn');
+            const showPostmatchBtn = document.getElementById('show-postmatch-btn');
 
             if (!matchNumber || matchNumber < 1) {
                 statusDiv.innerHTML = '<span class="error">⚠️ Match number required</span>';
@@ -219,6 +221,7 @@
             startBtn.disabled = !validationPassed || matchInProgress;
             quickStartBtn.disabled = !validationPassed || matchInProgress;
             stopBtn.disabled = !matchInProgress;
+            showPostmatchBtn.disabled = matchInProgress;
         }
 
         // Listen for input changes
@@ -241,6 +244,16 @@
             }
             
             clearMatchForm();
+        });
+
+        // Show Post-Match button - Incase of accidental reload it will show postmatch for current match or the one loaded
+        document.getElementById('show-postmatch-btn').addEventListener('click', () => {
+            if (!currentMatchId) {
+                showToast('No match is currently loaded. The match must be started first.', 'error', 4000);
+                return;
+            }
+            console.log('Sending fta_show_postmatch with match_id:', currentMatchId);
+            socket.emit('fta_show_postmatch', { match_id: currentMatchId });
         });
 
         function clearMatchForm() {

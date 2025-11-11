@@ -205,7 +205,6 @@ header {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    position: relative;
 }
 
 .time {
@@ -240,6 +239,7 @@ header {
     font-weight: bold;
     color: #000;
     background: #ffff00;
+    text-align: center;
     padding: 20px 40px;
     border-radius: 10px;
     animation: pulse 1s infinite;
@@ -257,7 +257,6 @@ header {
     animation: pulse 1s infinite;
     width: auto;
     white-space: nowrap;
-    position: absolute;
 }
 
 @keyframes pulse {
