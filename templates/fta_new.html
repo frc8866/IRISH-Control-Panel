@@ -7,6 +7,14 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/fta.css') }}">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
 </head>
+<!--On first page load immediately send the Ready For Match call-->
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const socket = io();
+        socket.emit('fta_ready_display');
+        console.log('FTA Control Panel loaded, sent fta_ready_display');
+    });
+</script>
 <body>
     <!-- Toast Notification Container -->
     <div id="toast-container" class="toast-container"></div>
