@@ -1,7 +1,8 @@
+import os
 from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO, emit
+from flask_sqlalchemy import SQLAlchemy    # ← THIS LINE WAS MISSING
 from models import db, Team, Match, MatchEvent, TeamRanking
-import os
 from datetime import datetime, UTC
 import threading
 import time
@@ -11,7 +12,6 @@ app.config['SECRET_KEY'] = 'IRISH-2025'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 if os.environ.get('RENDER'):
-    # Render gives postgres:// — just replace the scheme
     app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['DATABASE_URL'].replace('postgres://', 'postgresql://', 1)
 else:
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///irish.db'
