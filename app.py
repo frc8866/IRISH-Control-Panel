@@ -1,8 +1,7 @@
 import os
 from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO, emit
-from flask_sqlalchemy import SQLAlchemy    # ← THIS LINE WAS MISSING
-from models import db, Team, Match, MatchEvent, TeamRanking
+from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, UTC
 import threading
 import time
