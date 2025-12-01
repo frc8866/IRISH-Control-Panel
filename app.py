@@ -5,7 +5,6 @@ import os
 from datetime import datetime, UTC
 import threading
 import time
-import psycopg
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'IRISH-2025'
