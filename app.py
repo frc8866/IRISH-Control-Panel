@@ -5,20 +5,19 @@ import os
 from datetime import datetime, UTC
 import threading
 import time
+import psycopg
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'IRISH-2025'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-if os.environ.get('RENDER'):  # Render sets this automatically
-    # Use Render's PostgreSQL
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
+if os.environ.get('RENDER'):
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['DATABASE_URL'].replace('postgres://', 'postgresql://')  # psycopg prefers 'postgresql://'
 else:
-    # Local development - keep using SQLite
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///irish.db'
 
 db.init_app(app)
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, cors_allowed_origins="*") 
 
 # Global timer variables
 current_match_id = None
