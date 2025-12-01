@@ -16,7 +16,12 @@ if os.environ.get('RENDER'):
 else:
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///irish.db'
 
+# This is the ONE AND ONLY db instance
 db = SQLAlchemy(app)
+
+# Now initialize your models with this same db
+from models import Team, Match, MatchEvent, TeamRanking
+
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Global timer variables
