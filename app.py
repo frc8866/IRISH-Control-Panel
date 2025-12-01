@@ -8,8 +8,14 @@ import time
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'IRISH-2025'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///irish.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+if os.environ.get('RENDER'):  # Render sets this automatically
+    # Use Render's PostgreSQL
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
+else:
+    # Local development - keep using SQLite
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///irish.db'
 
 db.init_app(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
@@ -1321,4 +1327,11 @@ def handle_fta_stop_match(data):
         print(f"Match {match_id} stopped successfully")
 
 if __name__ == '__main__':
-    socketio.run(app, debug=False, host='0.0.0.0', port=5000)
+    socketio.run(app, debug=True, host='0.0.0.0', port=5000)
+else:
+    socketio.run(
+        app,
+        host='0.0.0.0',
+        port=int(os.environ.get('PORT', 5000)),
+        allow_unsafe_werkzeug=True
+    )
