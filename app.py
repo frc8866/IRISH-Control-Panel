@@ -1,6 +1,28 @@
 import os
+import eventlet
+eventlet.monkey_patch()
 from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO, emit
+import logging
+
+# Suppress noisy ConnectionAbortedError/BrokenPipeError tracebacks from eventlet wsgi when a client aborts a request.
+# These occur when the client cancels a range download (e.g. a partial audio file request) and are harmless.
+class IgnoreSocketErrorsFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        # If there was an exception recorded, ignore specific socket-related errors
+        if record.exc_info:
+            exc = record.exc_info[1]
+            if isinstance(exc, (ConnectionAbortedError, BrokenPipeError)):
+                return False
+        # Also check the rendered message to avoid logging those errors
+        msg = record.getMessage() if hasattr(record, 'getMessage') else str(record)
+        if 'ConnectionAbortedError' in msg or 'BrokenPipeError' in msg:
+            return False
+        return True
+
+# Attach filter to eventlet wsgi logger and root logger
+logging.getLogger('eventlet.wsgi').addFilter(IgnoreSocketErrorsFilter())
+logging.getLogger().addFilter(IgnoreSocketErrorsFilter())
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, UTC
 import threading
@@ -21,7 +43,7 @@ db.init_app(app)
 
 from models import Team, TeamRanking, Match, MatchEvent
 
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
 
 # Global timer variables
 current_match_id = None

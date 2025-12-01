@@ -18,3 +18,4 @@ dist/
 build/
 *.egg-info/
 .DS_Store
+.venv-3.12.7/

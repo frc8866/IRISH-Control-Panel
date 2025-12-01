@@ -9,20 +9,21 @@
 </head>
 <body>
     <!-- Audio elements for match sounds -->
-    <audio id="audio-start" preload="auto">
-        <source src="{{ url_for('static', filename='sounds/start.wav') }}" type="audio/wav">
-    </audio>
-    <audio id="audio-end" preload="auto">
-        <source src="{{ url_for('static', filename='sounds/end.wav') }}" type="audio/wav">
-    </audio>
-    <audio id="audio-abort" preload="auto">
-        <source src="{{ url_for('static', filename='sounds/abort.wav') }}" type="audio/wav">
-    </audio>
-    <audio id="audio-match-result" preload="auto">
-        <source src="{{ url_for('static', filename='sounds/match_result.wav') }}" type="audio/wav">
-    </audio>
-    <audio id="audio-warning" preload="auto">
-        <source src="{{ url_for('static', filename='sounds/warning.wav') }}" type="audio/wav">
+<audio id="audio-start" preload="auto">
+    <source src="https://cdn.jsdelivr.net/gh/8866CJ/IRISH-Control-Panel@main/static/sounds/start.wav" type="audio/wav">
+</audio>
+<audio id="audio-end" preload="auto">
+    <source src="https://cdn.jsdelivr.net/gh/8866CJ/IRISH-Control-Panel@main/static/sounds/end.wav" type="audio/wav">
+</audio>
+<audio id="audio-abort" preload="auto">
+    <source src="https://cdn.jsdelivr.net/gh/8866CJ/IRISH-Control-Panel@main/static/sounds/abort.wav" type="audio/wav">
+</audio>
+<audio id="audio-match-result" preload="auto">
+    <source src="https://cdn.jsdelivr.net/gh/8866CJ/IRISH-Control-Panel@main/static/sounds/match_result.wav" type="audio/wav">
+</audio>
+<audio id="audio-warning" preload="auto">
+    <source src="https://cdn.jsdelivr.net/gh/8866CJ/IRISH-Control-Panel@main/static/sounds/warning.wav" type="audio/wav">
+</audio>
     </audio>
     <!-- Create an alert on first start to make sure the user interacts with the webpage in order to play sound-->
     <script>
