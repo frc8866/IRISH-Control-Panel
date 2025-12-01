@@ -11,15 +11,13 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'IRISH-2025'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Smart DB selection: Postgres on Render (with explicit psycopg v3 dialect), SQLite locally
 if os.environ.get('RENDER'):
-    # Use postgresql+psycopg:// to force v3 dialect (avoids psycopg2 import)
-    db_url = os.environ['DATABASE_URL'].replace('postgres://', 'postgresql+psycopg://')
-    app.config['SQLALCHEMY_DATABASE_URI'] = db_url
+    # Render gives postgres:// — just replace the scheme
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['DATABASE_URL'].replace('postgres://', 'postgresql://', 1)
 else:
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///irish.db'
 
-db.init_app(app)
+db = SQLAlchemy(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Global timer variables
