@@ -5,6 +5,7 @@ from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, UTC
 import threading
 import time
+from db import db
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'IRISH-2025'
@@ -15,11 +16,10 @@ if os.environ.get('RENDER'):
 else:
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///irish.db'
 
-# This is the ONE AND ONLY db instance
-db = SQLAlchemy(app)
-
 # Now initialize your models with this same db
-from models import Team, Match, MatchEvent, TeamRanking
+db.init_app(app)
+
+from models import Team, TeamRanking, Match, MatchEvent
 
 socketio = SocketIO(app, cors_allowed_origins="*")
 
