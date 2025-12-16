@@ -693,10 +693,10 @@ def handle_score_event(data):
             match.red_climb += 1
         elif event_type == 'foul':
             match.red_fouls += 1
-            match.blue_score += 5  # Penalty points go to opponent only
+            match.blue_score += 2  # Penalty points go to opponent only
         elif event_type == 'tech_foul':
             match.red_tech_fouls += 1
-            match.blue_score += 15  # Penalty points go to opponent only
+            match.blue_score += 5  # Penalty points go to opponent only
 
     elif alliance == 'blue':
         if event_type == 'bucket_normal':
@@ -719,10 +719,10 @@ def handle_score_event(data):
             match.blue_climb += 1
         elif event_type == 'foul':
             match.blue_fouls += 1
-            match.red_score += 5  # Penalty points go to opponent only
+            match.red_score += 2  # Penalty points go to opponent only
         elif event_type == 'tech_foul':
             match.blue_tech_fouls += 1
-            match.red_score += 15  # Penalty points go to opponent only
+            match.red_score += 5  # Penalty points go to opponent only
 
     db.session.commit()
 
