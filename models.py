@@ -66,8 +66,8 @@ class Match(db.Model):
     blue_climb = db.Column(db.Integer, default=0)
 
     # Penalty tracking
-    red_fouls = db.Column(db.Integer, default=0)          # +5 to opponent each
-    red_tech_fouls = db.Column(db.Integer, default=0)     # +15 to opponent each
+    red_fouls = db.Column(db.Integer, default=0)          # +2 to opponent each
+    red_tech_fouls = db.Column(db.Integer, default=0)     # +5 to opponent each
     blue_fouls = db.Column(db.Integer, default=0)
     blue_tech_fouls = db.Column(db.Integer, default=0)
 

@@ -45,8 +45,8 @@
 
                 <div class="scoring-section">
                     <div class="section-title">Penalties</div>
-                    <button class="score-btn penalty-btn" data-alliance="red" data-type="foul">Foul (+5 to Blue)</button>
-                    <button class="score-btn danger-btn" data-alliance="red" data-type="tech_foul">Tech Foul (+15 to Blue)</button>
+                    <button class="score-btn penalty-btn" data-alliance="red" data-type="foul">Foul (+2 to Blue)</button>
+                    <button class="score-btn danger-btn" data-alliance="red" data-type="tech_foul">Tech Foul (+5 to Blue)</button>
                 </div>
             </div>
 
@@ -69,8 +69,8 @@
 
                 <div class="scoring-section">
                     <div class="section-title">Penalties</div>
-                    <button class="score-btn penalty-btn" data-alliance="blue" data-type="foul">Foul (+5 to Red)</button>
-                    <button class="score-btn danger-btn" data-alliance="blue" data-type="tech_foul">Tech Foul (+15 to Red)</button>
+                    <button class="score-btn penalty-btn" data-alliance="blue" data-type="foul">Foul (+2 to Red)</button>
+                    <button class="score-btn danger-btn" data-alliance="blue" data-type="tech_foul">Tech Foul (+5 to Red)</button>
                 </div>
             </div>
         </div>
@@ -222,8 +222,8 @@
                     case 'park': points = 2; break;
                     case 'slight_ramp': points = 6; break;
                     case 'climb': points = 14; break;
-                    case 'foul': points = 5; break; // This will be added to opponent
-                    case 'tech_foul': points = 15; break; // This will be added to opponent
+                    case 'foul': points = 2; break; // This will be added to opponent
+                    case 'tech_foul': points = 5; break; // This will be added to opponent
                 }
 
                 if (currentMatchId) {
@@ -456,8 +456,8 @@
                 case 'park': points = 2; break;
                 case 'slight_ramp': points = 6; break;
                 case 'climb': points = 14; break;
-                case 'foul': points = 5; break;
-                case 'tech_foul': points = 15; break;
+                case 'foul': points = 2; break;
+                case 'tech_foul': points = 5; break;
             }
             
             if (currentMatchId) {
